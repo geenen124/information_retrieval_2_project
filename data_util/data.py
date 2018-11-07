@@ -32,7 +32,7 @@ class Vocab(object):
       self._count += 1
 
     # Read the vocab file and add words up to max_size
-    with open(vocab_file, 'r', encoding='utf-8') as vocab_f:
+    with open(vocab_file, 'r') as vocab_f:
       for line in vocab_f:
         pieces = line.split()
         if len(pieces) != 2:
@@ -83,7 +83,7 @@ def example_generator(data_path, single_pass):
     else:
       random.shuffle(filelist)
     for f in filelist:
-      reader = open(f, 'rb')
+      reader = open(f, 'rb', encoding='utf-8')
       while True:
         len_bytes = reader.read(8)
         if not len_bytes: break # finished reading this file
@@ -158,7 +158,7 @@ def abstract2sents(abstract):
 
 def show_art_oovs(article, vocab):
   unk_token = vocab.word2id(UNKNOWN_TOKEN)
-  words = article.split(' ')
+  words = article.decode().split(' ')
   words = [("__%s__" % w) if vocab.word2id(w)==unk_token else w for w in words]
   out_str = ' '.join(words)
   return out_str
