@@ -1,0 +1,4 @@
+.vscode/
+data_util/__pycache__/
+train_log/
+training_ptr_gen/__pycache__/
