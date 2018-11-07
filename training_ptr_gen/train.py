@@ -26,7 +26,8 @@ class Train(object):
                                batch_size=config.batch_size, single_pass=False)
         time.sleep(15)
 
-        train_dir = os.path.join(config.log_root, 'train_%d' % (int(time.time())))
+        #train_dir = os.path.join(config.log_root, 'train_%d' % (int(time.time())))
+        train_dir = './train_log'
         if not os.path.exists(train_dir):
             os.mkdir(train_dir)
 
@@ -125,6 +126,7 @@ class Train(object):
             loss = self.train_one_batch(batch)
 
             running_avg_loss = calc_running_avg_loss(loss, running_avg_loss, self.summary_writer, iter)
+            print("Iteration:", iter, "  loss:", loss, "  Running avg loss:", running_avg_loss)
             iter += 1
 
             if iter % 100 == 0:

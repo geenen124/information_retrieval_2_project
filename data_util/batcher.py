@@ -8,8 +8,8 @@ from threading import Thread
 import numpy as np
 import tensorflow as tf
 
-from data_util import config
-from data_util import data
+import data_util.config as config
+import data_util.data as data
 
 import random
 random.seed(1234)
@@ -30,7 +30,6 @@ class Example(object):
     self.enc_input = [vocab.word2id(w) for w in article_words] # list of word ids; OOVs are represented by the id for UNK token
 
     # Process the abstract
-    abstract_sentences = [str(s) for s in abstract_sentences]
     abstract = ' '.join(abstract_sentences) # string
     abstract_words = abstract.split() # list of strings
     abs_ids = [vocab.word2id(w) for w in abstract_words] # list of word ids; OOVs are represented by the id for UNK token
@@ -271,8 +270,8 @@ class Batcher(object):
     while True:
       e = next(example_generator) # e is a tf.Example
       try:
-        article_text = e.features.feature['article'].bytes_list.value[0] # the article text was saved under the key 'article' in the data files
-        abstract_text = e.features.feature['abstract'].bytes_list.value[0] # the abstract text was saved under the key 'abstract' in the data files
+        article_text = e.features.feature['article'].bytes_list.value[0].decode() # the article text was saved under the key 'article' in the data files
+        abstract_text = e.features.feature['abstract'].bytes_list.value[0].decode() # the abstract text was saved under the key 'abstract' in the data files
       except ValueError:
         tf.logging.error('Failed to get article or abstract from example')
         continue
