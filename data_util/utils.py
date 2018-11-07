@@ -1,11 +1,11 @@
 #Content of this file is copied from https://github.com/abisee/pointer-generator/blob/master/
 import os
-from data_util import rouge
+import pyrouge
 import logging
 import tensorflow as tf
 
 def print_results(article, abstract, decoded_output):
-  print ("")
+  print("")
   print('ARTICLE:  %s', article)
   print('REFERENCE SUMMARY: %s', abstract)
   print('GENERATED SUMMARY: %s', decoded_output)
@@ -19,7 +19,7 @@ def make_html_safe(s):
 
 
 def rouge_eval(ref_dir, dec_dir):
-  r = rouge.Rouge155()
+  r = pyrouge.Rouge155()
   r.model_filename_pattern = '#ID#_reference.txt'
   r.system_filename_pattern = '(\d+)_decoded.txt'
   r.model_dir = ref_dir

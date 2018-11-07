@@ -26,7 +26,8 @@ class Train(object):
                                batch_size=config.batch_size, single_pass=False)
         time.sleep(15)
 
-        train_dir = os.path.join(config.log_root, 'train_%d' % (int(time.time())))
+        #train_dir = os.path.join(config.log_root, 'train_%d' % (int(time.time())))
+        train_dir = './train_log'
         if not os.path.exists(train_dir):
             os.mkdir(train_dir)
 

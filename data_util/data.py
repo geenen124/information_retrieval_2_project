@@ -7,8 +7,8 @@ import csv
 from tensorflow.core.example import example_pb2
 
 # <s> and </s> are used in the data files to segment the abstracts into sentences. They don't receive vocab ids.
-SENTENCE_START = b'<s>'
-SENTENCE_END = b'</s>'
+SENTENCE_START = '<s>'
+SENTENCE_END = '</s>'
 
 PAD_TOKEN = '[PAD]' # This has a vocab id, which is used to pad the encoder input, decoder input and target sequence
 UNKNOWN_TOKEN = '[UNK]' # This has a vocab id, which is used to represent out-of-vocabulary words
@@ -32,7 +32,7 @@ class Vocab(object):
       self._count += 1
 
     # Read the vocab file and add words up to max_size
-    with open(vocab_file, 'r') as vocab_f:
+    with open(vocab_file, 'r', encoding='utf-8') as vocab_f:
       for line in vocab_f:
         pieces = line.split()
         if len(pieces) != 2:
@@ -70,7 +70,7 @@ class Vocab(object):
     with open(fpath, "w") as f:
       fieldnames = ['word']
       writer = csv.DictWriter(f, delimiter="\t", fieldnames=fieldnames)
-      for i in xrange(self.size()):
+      for i in range(self.size()):
         writer.writerow({"word": self._id_to_word[i]})
 
 
@@ -89,10 +89,7 @@ def example_generator(data_path, single_pass):
         if not len_bytes: break # finished reading this file
         str_len = struct.unpack('q', len_bytes)[0]
         example_str = struct.unpack('%ds' % str_len, reader.read(str_len))[0]
-        example = example_pb2.Example.FromString(example_str)
-        #print(example)
-        #assert False
-        yield example
+        yield example_pb2.Example.FromString(example_str)
     if single_pass:
       print("example_generator completed reading all datafiles. No more data.")
       break
