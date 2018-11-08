@@ -268,10 +268,9 @@ class Batcher(object):
 
   def text_generator(self, example_generator):
     while True:
-      e = next(example_generator) # e is a tf.Example
+      e = next(example_generator) # e is a formatted string
       try:
-        article_text = e.features.feature['article'].bytes_list.value[0].decode() # the article text was saved under the key 'article' in the data files
-        abstract_text = e.features.feature['abstract'].bytes_list.value[0].decode() # the abstract text was saved under the key 'abstract' in the data files
+        article_text, abstract_text = e.split('|#|#|')
       except ValueError:
         tf.logging.error('Failed to get article or abstract from example')
         continue
