@@ -4,7 +4,6 @@ import os
 import time
 import argparse
 
-import tensorflow as tf
 import torch
 from model import Model
 from torch.nn.utils import clip_grad_norm_
@@ -34,8 +33,6 @@ class Train(object):
         self.model_dir = os.path.join(train_dir, 'model')
         if not os.path.exists(self.model_dir):
             os.mkdir(self.model_dir)
-
-        self.summary_writer = tf.summary.FileWriter(train_dir)
 
     def save_model(self, running_avg_loss, iter):
         state = {
@@ -125,12 +122,10 @@ class Train(object):
             batch = self.batcher.next_batch()
             loss = self.train_one_batch(batch)
 
-            running_avg_loss = calc_running_avg_loss(loss, running_avg_loss, self.summary_writer, iter)
+            running_avg_loss = calc_running_avg_loss(loss, running_avg_loss, iter)
             print("Iteration:", iter, "  loss:", loss, "  Running avg loss:", running_avg_loss)
             iter += 1
 
-            if iter % 100 == 0:
-                self.summary_writer.flush()
             print_interval = 1000
             if iter % print_interval == 0:
                 print('steps %d, seconds for %d batch: %.2f , loss: %f' % (iter, print_interval,
