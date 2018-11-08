@@ -4,7 +4,6 @@ import glob
 import random
 import struct
 import csv
-from tensorflow.core.example import example_pb2
 
 # <s> and </s> are used in the data files to segment the abstracts into sentences. They don't receive vocab ids.
 SENTENCE_START = '<s>'
@@ -89,7 +88,7 @@ def example_generator(data_path, single_pass):
         if not len_bytes: break # finished reading this file
         str_len = struct.unpack('q', len_bytes)[0]
         example_str = struct.unpack('%ds' % str_len, reader.read(str_len))[0]
-        yield example_pb2.Example.FromString(example_str)
+        yield example_str.decode()
     if single_pass:
       print("example_generator completed reading all datafiles. No more data.")
       break
