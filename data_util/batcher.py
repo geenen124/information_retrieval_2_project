@@ -192,7 +192,7 @@ class Batcher(object):
   def next_batch(self):
     # If the batch queue is empty, print a warning
     if self._batch_queue.qsize() == 0:
-      print('Bucket input queue is empty when calling next_batch. Bucket queue size: %i, Input queue size: %i', self._batch_queue.qsize(), self._example_queue.qsize())
+      print('Bucket input queue is empty when calling next_batch. Bucket queue size: %i, Input queue size: %i'%(self._batch_queue.qsize(), self._example_queue.qsize()))
       if self._single_pass and self._finished_reading:
         print("Finished reading dataset in single_pass mode.")
         return None
@@ -245,8 +245,8 @@ class Batcher(object):
   def watch_threads(self):
     while True:
 #      print(
-#        'Bucket queue size: %i, Input queue size: %i',
-#        self._batch_queue.qsize(), self._example_queue.qsize())
+#        'Bucket queue size: %i, Input queue size: %i'%
+#        (self._batch_queue.qsize(), self._example_queue.qsize()))
 
       time.sleep(60)
       for idx,t in enumerate(self._example_q_threads):
