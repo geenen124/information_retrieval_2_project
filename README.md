@@ -24,3 +24,11 @@ OR
 export PYTHONPATH=$PYTHONPATH:'pwd'
 python training_ptr_gen/train.py
 ```
+
+
+# How to load a model checkpoint for training/testing
+* Pass the absolute path to the checkpoint as argument. 
+* For ex:
+```
+python training_ptr_gen/train.py -m <absolute/path/to/model/checkpoint>
+```
