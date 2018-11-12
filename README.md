@@ -12,7 +12,7 @@ Base version reference: *[pointer_summerizer](https://github.com/atulkum/pointer
 ```
 git clone https://github.com/andersjo/pyrouge
 cd pyrouge
-python setyp.py install
+python setup.py install
 ```
 
 # How to run training:
