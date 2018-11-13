@@ -8,12 +8,15 @@ Base version reference: *[pointer_summerizer](https://github.com/atulkum/pointer
 # Data:
 * Follow data generation instruction from https://github.com/abisee/cnn-dailymail 
 
-# pyrogue
-```
-git clone https://github.com/andersjo/pyrouge
-cd pyrouge
-python setup.py install
-```
+# How to Install PyRouge
+--------------------------------------------
+1. Clone old PyRouge Repository into separate directory `git clone https://github.com/andersjo/pyrouge.git pyrouge_ancient`
+2. Clone new PyRouge Repository `git clone https://github.com/bheinzerling/pyrouge.git`
+3. Run `pip install pyrouge`
+4. Set the Rouge-1.5.5 Installation Directory (N.B. This needs to be an absolute path!!!)
+  `pyrouge_set_rouge_path <absolute_path_of_current_directory>/pyrouge_ancient/tools/ROUGE-1.5.5/`
+5. Run `cd pyrouge`
+6. Check to see if it worked by running `python -m pyrouge.test`
 
 # How to run training:
 --------------------------------------------
@@ -24,7 +27,6 @@ OR
 export PYTHONPATH=$PYTHONPATH:'pwd'
 python training_ptr_gen/train.py
 ```
-
 
 # How to load a model checkpoint for training/evaluation/decoding
 * **Note:** For training passing the initial checkpoint is optional argument, but for evaluation and decoding passing the checkpoint is must.
