@@ -24,3 +24,13 @@ OR
 export PYTHONPATH=$PYTHONPATH:'pwd'
 python training_ptr_gen/train.py
 ```
+
+# How to Install PyRouge
+--------------------------------------------
+1. Clone old PyRouge Repository into separate directory `git clone https://github.com/andersjo/pyrouge.git pyrouge_ancient`
+2. Clone new PyRouge Repository `git clone https://github.com/bheinzerling/pyrouge.git`
+3. Run `pip install pyrouge`
+4. Set the Rouge-1.5.5 Installation Directory (N.B. This needs to be an absolute path!!!)
+  `pyrouge_set_rouge_path <absolute_path_of_current_directory>/pyrouge_ancient/tools/ROUGE-1.5.5/`
+5. Run `cd pyrouge`
+6. Check to see if it worked by running `python -m pyrouge.test`
