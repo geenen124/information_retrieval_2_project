@@ -3,10 +3,6 @@
 from __future__ import unicode_literals, print_function, division
 
 import sys
-
-reload(sys)
-sys.setdefaultencoding('utf8')
-
 import os
 import time
 
@@ -93,6 +89,7 @@ class BeamSearch(object):
             write_for_rouge(original_abstract_sents, decoded_words, counter,
                             self._rouge_ref_dir, self._rouge_dec_dir)
             counter += 1
+            print("Iteration: ", counter)
             if counter % 1000 == 0:
                 print('%d example in %d sec'%(counter, time.time() - start))
                 start = time.time()
