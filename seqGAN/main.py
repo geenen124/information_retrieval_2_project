@@ -37,7 +37,7 @@ TRAIN_DATA_PATH = "cnn-dailymail-master/finished_files/chunked/train_*"
 ############## DELETE THIS #######################
 TRAIN_DATA_PATH = "cnn-dailymail-master/finished_files/chunked/test_*"
 
-MAX_ENC_STEPS = 400
+MAX_ENC_STEPS = 400 # ToDo: check this
 
 
 def train_generator_MLE(gen, gen_opt, oracle, real_data_samples, epochs, start_letter):
