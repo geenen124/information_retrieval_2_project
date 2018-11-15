@@ -75,7 +75,10 @@ class Vocab(object):
 
 def text_generator(example_generator):
   while True:
-    e = next(example_generator) # e is a formatted string
+    try:
+      e = next(example_generator) # e is a formatted string
+    except StopIteration:
+      return
     try:
       article_text, abstract_text = e.split('|#|#|')
     except ValueError:
