@@ -10,14 +10,14 @@ import torch.nn as nn
 #import discriminator
 #import helpers
 
-from data_util.data import Vocab, example_generator, text_generator
+#import data_util as data
+from data_util.data import Vocab, example_generator, text_generator, abstract2sents, START_DECODING
 
 
 
 CUDA = False
 VOCAB_SIZE = 5000
 MAX_SEQ_LEN = 20
-#START_LETTER = 0
 BATCH_SIZE = 32
 MLE_TRAIN_EPOCHS = 100
 ADV_TRAIN_EPOCHS = 50
@@ -38,7 +38,7 @@ VOCAB_PATH = "cnn-dailymail-master/finished_files/vocab"
 TRAIN_DATA_PATH = "cnn-dailymail-master/finished_files/chunked/train_*"
 
 
-def train_generator_MLE(gen, gen_opt, oracle, real_data_samples, epochs):
+def train_generator_MLE(gen, gen_opt, oracle, real_data_samples, epochs, start_letter):
     """
     Max Likelihood Pretraining for the generator
     """
@@ -48,7 +48,7 @@ def train_generator_MLE(gen, gen_opt, oracle, real_data_samples, epochs):
         total_loss = 0
 
         for i in range(0, POS_NEG_SAMPLES, BATCH_SIZE):
-            inp, target = helpers.prepare_generator_batch(real_data_samples[i:i + BATCH_SIZE], start_letter=START_LETTER,
+            inp, target = helpers.prepare_generator_batch(real_data_samples[i:i + BATCH_SIZE], start_letter,
                                                           gpu=CUDA)
             gen_opt.zero_grad()
             loss = gen.batchNLLLoss(inp, target)
@@ -72,7 +72,7 @@ def train_generator_MLE(gen, gen_opt, oracle, real_data_samples, epochs):
         print(' average_train_NLL = %.4f, oracle_sample_NLL = %.4f' % (total_loss, oracle_loss))
 
 
-def train_generator_PG(gen, gen_opt, oracle, dis, num_batches):
+def train_generator_PG(gen, gen_opt, oracle, dis, num_batches, start_letter):
     """
     The generator is trained using policy gradients, using the reward from the discriminator.
     Training is done for num_batches batches.
@@ -80,7 +80,7 @@ def train_generator_PG(gen, gen_opt, oracle, dis, num_batches):
 
     for batch in range(num_batches):
         s = gen.sample(BATCH_SIZE*2)        # 64 works best
-        inp, target = helpers.prepare_generator_batch(s, start_letter=START_LETTER, gpu=CUDA)
+        inp, target = helpers.prepare_generator_batch(s, start_letter, gpu=CUDA)
         rewards = dis.batchClassify(target)
 
         gen_opt.zero_grad()
@@ -148,9 +148,13 @@ if __name__ == '__main__':
     # samples for the new oracle can be generated using helpers.batchwise_sample()
 
     vocab = Vocab(VOCAB_PATH, VOCAB_SIZE)
+    start_letter = vocab.word2id(START_DECODING)
+    
     text_gen = text_generator(example_generator(TRAIN_DATA_PATH, single_pass=True))
     for article, abstract in text_gen:
+        abstract_sentences = [sent.strip() for sent in abstract2sents(abstract)] # Use the <s> and </s> tags in abstract to get a list of sentences.
         print(abstract)
+        print(abstract_sentences)
         assert False
     
 
@@ -169,7 +173,7 @@ if __name__ == '__main__':
     # GENERATOR MLE TRAINING
     print('Starting Generator MLE Training...')
     gen_optimizer = optim.Adam(gen.parameters(), lr=1e-2)
-    train_generator_MLE(gen, gen_optimizer, oracle, oracle_samples, MLE_TRAIN_EPOCHS)
+    train_generator_MLE(gen, gen_optimizer, oracle, oracle_samples, MLE_TRAIN_EPOCHS, start_letter)
 
     # torch.save(gen.state_dict(), pretrained_gen_path)
     # gen.load_state_dict(torch.load(pretrained_gen_path))
@@ -185,7 +189,7 @@ if __name__ == '__main__':
     # ADVERSARIAL TRAINING
     print('\nStarting Adversarial Training...')
     oracle_loss = helpers.batchwise_oracle_nll(gen, oracle, POS_NEG_SAMPLES, BATCH_SIZE, MAX_SEQ_LEN,
-                                               start_letter=START_LETTER, gpu=CUDA)
+                                               start_letter, gpu=CUDA)
     print('\nInitial Oracle Sample Loss : %.4f' % oracle_loss)
 
     for epoch in range(ADV_TRAIN_EPOCHS):
@@ -193,7 +197,7 @@ if __name__ == '__main__':
         # TRAIN GENERATOR
         print('\nAdversarial Training Generator : ', end='')
         sys.stdout.flush()
-        train_generator_PG(gen, gen_optimizer, oracle, dis, 1)
+        train_generator_PG(gen, gen_optimizer, oracle, dis, 1, start_letter)
 
         # TRAIN DISCRIMINATOR
         print('\nAdversarial Training Discriminator : ')
