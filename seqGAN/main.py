@@ -6,18 +6,16 @@ import torch
 import torch.optim as optim
 import torch.nn as nn
 
-#import generator
-#import discriminator
-#import helpers
+import generator
+import discriminator
+import helpers
 
-#import data_util as data
 from data_util.data import Vocab, example_generator, text_generator, abstract2sents, START_DECODING
-
 
 
 CUDA = False
 VOCAB_SIZE = 5000
-MAX_SEQ_LEN = 20
+MAX_SEQ_LEN = 20 #TODO: check this
 BATCH_SIZE = 32
 MLE_TRAIN_EPOCHS = 100
 ADV_TRAIN_EPOCHS = 50
@@ -67,7 +65,7 @@ def train_generator_MLE(gen, gen_opt, oracle, real_data_samples, epochs, start_l
 
         # sample from generator and compute oracle NLL
         oracle_loss = helpers.batchwise_oracle_nll(gen, oracle, POS_NEG_SAMPLES, BATCH_SIZE, MAX_SEQ_LEN,
-                                                   start_letter=START_LETTER, gpu=CUDA)
+                                                   start_letter, gpu=CUDA)
 
         print(' average_train_NLL = %.4f, oracle_sample_NLL = %.4f' % (total_loss, oracle_loss))
 
@@ -90,7 +88,7 @@ def train_generator_PG(gen, gen_opt, oracle, dis, num_batches, start_letter):
 
     # sample from generator and compute oracle NLL
     oracle_loss = helpers.batchwise_oracle_nll(gen, oracle, POS_NEG_SAMPLES, BATCH_SIZE, MAX_SEQ_LEN,
-                                                   start_letter=START_LETTER, gpu=CUDA)
+                                                   start_letter, gpu=CUDA)
 
     print(' oracle_sample_NLL = %.4f' % oracle_loss)
 
@@ -153,6 +151,7 @@ if __name__ == '__main__':
     text_gen = text_generator(example_generator(TRAIN_DATA_PATH, single_pass=True))
     for article, abstract in text_gen:
         abstract_sentences = [sent.strip() for sent in abstract2sents(abstract)] # Use the <s> and </s> tags in abstract to get a list of sentences.
+
         print(abstract)
         print(abstract_sentences)
         assert False
