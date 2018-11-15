@@ -10,8 +10,7 @@ import torch.nn as nn
 #import discriminator
 #import helpers
 
-from data_util.data import Vocab
-
+from data_util.data import Vocab, example_generator, text_generator
 
 
 
@@ -36,7 +35,7 @@ DIS_HIDDEN_DIM = 64
 
 VOCAB_SIZE = 50000
 VOCAB_PATH = "cnn-dailymail-master/finished_files/vocab"
-
+TRAIN_DATA_PATH = "cnn-dailymail-master/finished_files/chunked/train_*"
 
 
 def train_generator_MLE(gen, gen_opt, oracle, real_data_samples, epochs):
@@ -149,7 +148,11 @@ if __name__ == '__main__':
     # samples for the new oracle can be generated using helpers.batchwise_sample()
 
     vocab = Vocab(VOCAB_PATH, VOCAB_SIZE)
-    assert False
+    text_gen = text_generator(example_generator(TRAIN_DATA_PATH, single_pass=True))
+    for article, abstract in text_gen:
+        print(abstract)
+        assert False
+    
 
     # These are our gold summaries
     oracle_samples = None

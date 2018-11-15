@@ -201,7 +201,7 @@ class Batcher(object):
     return batch
 
   def fill_example_queue(self):
-    input_gen = self.text_generator(data.example_generator(self._data_path, self._single_pass))
+    input_gen = data.text_generator(data.example_generator(self._data_path, self._single_pass))
 
     while True:
       try:
@@ -263,18 +263,3 @@ class Batcher(object):
           self._batch_q_threads[idx] = new_t
           new_t.daemon = True
           new_t.start()
-
-
-  def text_generator(self, example_generator):
-    while True:
-      e = next(example_generator) # e is a formatted string
-      try:
-        article_text, abstract_text = e.split('|#|#|')
-      except ValueError:
-        print('Failed to get article or abstract from example')
-        continue
-      if len(article_text)==0: # See https://github.com/abisee/pointer-generator/issues/1
-        #tf.logging.warning('Found an example with empty article text. Skipping it.')
-        continue
-      else:
-        yield (article_text, abstract_text)

@@ -73,6 +73,20 @@ class Vocab(object):
         writer.writerow({"word": self._id_to_word[i]})
 
 
+def text_generator(example_generator):
+  while True:
+    e = next(example_generator) # e is a formatted string
+    try:
+      article_text, abstract_text = e.split('|#|#|')
+    except ValueError:
+      print('Failed to get article or abstract from example')
+      continue
+    if len(article_text)==0: # See https://github.com/abisee/pointer-generator/issues/1
+      #tf.logging.warning('Found an example with empty article text. Skipping it.')
+      continue
+    else:
+      yield (article_text, abstract_text)
+
 def example_generator(data_path, single_pass):
   while True:
     filelist = glob.glob(data_path) # get the list of datafiles
