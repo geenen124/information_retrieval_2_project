@@ -34,6 +34,10 @@ DIS_HIDDEN_DIM = 64
 VOCAB_SIZE = 50000
 VOCAB_PATH = "cnn-dailymail-master/finished_files/vocab"
 TRAIN_DATA_PATH = "cnn-dailymail-master/finished_files/chunked/train_*"
+############## DELETE THIS #######################
+TRAIN_DATA_PATH = "cnn-dailymail-master/finished_files/chunked/test_*"
+
+MAX_ENC_STEPS = 400
 
 
 def train_generator_MLE(gen, gen_opt, oracle, real_data_samples, epochs, start_letter):
@@ -149,12 +153,21 @@ if __name__ == '__main__':
     start_letter = vocab.word2id(START_DECODING)
     
     text_gen = text_generator(example_generator(TRAIN_DATA_PATH, single_pass=True))
+    
     for article, abstract in text_gen:
+        # Tokenize article
+        article_words = article.split()
+        if len(article_words) > MAX_ENC_STEPS:
+            article_words = article_words[:MAX_ENC_STEPS]        
+        article_tokens = [vocab.word2id(w) for w in article_words] # list of word ids; OOVs are represented by the id for UNK token
+        
+        # Tokenize abstract
         abstract_sentences = [sent.strip() for sent in abstract2sents(abstract)] # Use the <s> and </s> tags in abstract to get a list of sentences.
+        abstract_joined = ' '.join(abstract_sentences) # string
+        abstract_words = abstract_joined.split() # list of strings
+        abstract_tokens = [vocab.word2id(w) for w in abstract_words] # list of word ids; OOVs are represented by the id for UNK token
 
-        print(abstract)
-        print(abstract_sentences)
-        assert False
+    assert False
     
 
     # These are our gold summaries
