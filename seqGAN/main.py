@@ -14,7 +14,6 @@ from data_util.data import Vocab, example_generator, text_generator, abstract2se
 
 
 CUDA = False
-VOCAB_SIZE = 5000
 #MAX_SEQ_LEN = 20 #TODO: check this
 BATCH_SIZE = 32
 MLE_TRAIN_EPOCHS = 100
@@ -189,12 +188,7 @@ if __name__ == '__main__':
     inputs = torch.stack(inputs)
     targets = torch.stack(targets)
 
-    assert False
     
-
-    # These are our gold abstracts
-    target_abstracts = None
-
     gen = generator.Generator(GEN_EMBEDDING_DIM, GEN_HIDDEN_DIM, VOCAB_SIZE, MAX_SEQ_LEN, gpu=CUDA)
     dis = discriminator.Discriminator(DIS_EMBEDDING_DIM, DIS_HIDDEN_DIM, VOCAB_SIZE, MAX_SEQ_LEN, gpu=CUDA)
 
