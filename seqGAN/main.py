@@ -10,12 +10,12 @@ import generator
 import discriminator
 import helpers
 
-from data_util.data import Vocab, example_generator, text_generator, abstract2sents, START_DECODING
+from data_util.data import Vocab, example_generator, text_generator, abstract2sents, START_DECODING, PAD_TOKEN
 
 
 CUDA = False
 VOCAB_SIZE = 5000
-MAX_SEQ_LEN = 20 #TODO: check this
+#MAX_SEQ_LEN = 20 #TODO: check this
 BATCH_SIZE = 32
 MLE_TRAIN_EPOCHS = 100
 ADV_TRAIN_EPOCHS = 50
@@ -38,6 +38,7 @@ TRAIN_DATA_PATH = "cnn-dailymail-master/finished_files/chunked/train_*"
 TRAIN_DATA_PATH = "cnn-dailymail-master/finished_files/chunked/test_*"
 
 MAX_ENC_STEPS = 400 # ToDo: check this
+MAX_DEC_STEPS = 100 # ToDo: check this
 
 
 def train_generator_MLE(gen, gen_opt, oracle, real_data_samples, epochs, start_letter):
@@ -151,9 +152,14 @@ if __name__ == '__main__':
 
     vocab = Vocab(VOCAB_PATH, VOCAB_SIZE)
     start_letter = vocab.word2id(START_DECODING)
+    pad_id = vocab.word2id(PAD_TOKEN)
     
     text_gen = text_generator(example_generator(TRAIN_DATA_PATH, single_pass=True))
     
+    inputs = []
+    targets = []
+    
+    counter = 0
     for article, abstract in text_gen:
         # Tokenize article
         article_words = article.split()
@@ -167,20 +173,34 @@ if __name__ == '__main__':
         abstract_words = abstract_joined.split() # list of strings
         abstract_tokens = [vocab.word2id(w) for w in abstract_words] # list of word ids; OOVs are represented by the id for UNK token
 
+        if len(abstract_tokens) > MAX_DEC_STEPS:
+            abstract_tokens = abstract_tokens[:MAX_DEC_STEPS]
+
+        # Pad # ToDo: check
+        while len(article_tokens) < MAX_ENC_STEPS:
+            article_tokens.append(pad_id)
+            
+        while len(abstract_tokens) < MAX_DEC_STEPS:
+            abstract_tokens.append(pad_id)
+
+        inputs.append(torch.LongTensor(article_tokens))
+        targets.append(torch.LongTensor(abstract_tokens))
+        
+    inputs = torch.stack(inputs)
+    targets = torch.stack(targets)
+
     assert False
     
 
-    # These are our gold summaries
-    oracle_samples = None
+    # These are our gold abstracts
+    target_abstracts = None
 
     gen = generator.Generator(GEN_EMBEDDING_DIM, GEN_HIDDEN_DIM, VOCAB_SIZE, MAX_SEQ_LEN, gpu=CUDA)
     dis = discriminator.Discriminator(DIS_EMBEDDING_DIM, DIS_HIDDEN_DIM, VOCAB_SIZE, MAX_SEQ_LEN, gpu=CUDA)
 
     if CUDA:
-#        oracle = oracle.cuda()
         gen = gen.cuda()
         dis = dis.cuda()
-#        oracle_samples = oracle_samples.cuda()
 
     # GENERATOR MLE TRAINING
     print('Starting Generator MLE Training...')
