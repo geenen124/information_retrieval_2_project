@@ -40,7 +40,7 @@ MAX_ENC_STEPS = 400 # ToDo: check this
 MAX_DEC_STEPS = 100 # ToDo: check this
 
 
-def train_generator_MLE(gen, gen_opt, oracle, real_data_samples, epochs, start_letter):
+def train_generator_MLE(gen, gen_opt, oracle, inputs, targets, epochs, start_letter):
     """
     Max Likelihood Pretraining for the generator
     """
@@ -50,7 +50,9 @@ def train_generator_MLE(gen, gen_opt, oracle, real_data_samples, epochs, start_l
         total_loss = 0
 
         for i in range(0, POS_NEG_SAMPLES, BATCH_SIZE):
-            inp, target = helpers.prepare_generator_batch(real_data_samples[i:i + BATCH_SIZE], start_letter,
+            inp, target = helpers.prepare_generator_batch(inputs[i:i + BATCH_SIZE],
+                                                          targets[i:i + BATCH_SIZE],
+                                                          start_letter,
                                                           gpu=CUDA)
             gen_opt.zero_grad()
             loss = gen.batchNLLLoss(inp, target)
@@ -65,7 +67,7 @@ def train_generator_MLE(gen, gen_opt, oracle, real_data_samples, epochs, start_l
                 sys.stdout.flush()
 
         # each loss in a batch is loss per sample
-        total_loss = total_loss / ceil(POS_NEG_SAMPLES / float(BATCH_SIZE)) / MAX_SEQ_LEN
+        total_loss = total_loss / ceil(POS_NEG_SAMPLES / float(BATCH_SIZE)) / MAX_DEC_STEPS
 
         # sample from generator and compute oracle NLL
         oracle_loss = helpers.batchwise_oracle_nll(gen, oracle, POS_NEG_SAMPLES, BATCH_SIZE, MAX_SEQ_LEN,
@@ -155,8 +157,8 @@ if __name__ == '__main__':
     
     text_gen = text_generator(example_generator(TRAIN_DATA_PATH, single_pass=True))
     
-    inputs = []
-    targets = []
+    articles = []
+    abstracts = []
     
     counter = 0
     for article, abstract in text_gen:
@@ -182,11 +184,11 @@ if __name__ == '__main__':
         while len(abstract_tokens) < MAX_DEC_STEPS:
             abstract_tokens.append(pad_id)
 
-        inputs.append(torch.LongTensor(article_tokens))
-        targets.append(torch.LongTensor(abstract_tokens))
+        articles.append(torch.LongTensor(article_tokens))
+        abstracts.append(torch.LongTensor(abstract_tokens))
         
-    inputs = torch.stack(inputs)
-    targets = torch.stack(targets)
+    articles = torch.stack(articles)
+    abstracts = torch.stack(abstracts)
 
     
     gen = generator.Generator(GEN_EMBEDDING_DIM, GEN_HIDDEN_DIM, VOCAB_SIZE, MAX_DEC_STEPS, gpu=CUDA)
@@ -199,7 +201,7 @@ if __name__ == '__main__':
     # GENERATOR MLE TRAINING
     print('Starting Generator MLE Training...')
     gen_optimizer = optim.Adam(gen.parameters(), lr=1e-2)
-    train_generator_MLE(gen, gen_optimizer, oracle, oracle_samples, MLE_TRAIN_EPOCHS, start_letter)
+    train_generator_MLE(gen, gen_optimizer, oracle, articles, abstracts, MLE_TRAIN_EPOCHS, start_letter)
 
     # torch.save(gen.state_dict(), pretrained_gen_path)
     # gen.load_state_dict(torch.load(pretrained_gen_path))

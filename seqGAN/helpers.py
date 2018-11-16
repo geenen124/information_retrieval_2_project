@@ -2,24 +2,26 @@ import torch
 from torch.autograd import Variable
 from math import ceil
 
-def prepare_generator_batch(samples, start_letter=0, gpu=False):
+def prepare_generator_batch(inputs, targets, start_letter, gpu=False):
     """
-    Takes samples (a batch) and returns
+    Takes a batch of inputs and targets and returns
 
-    Inputs: samples, start_letter, cuda
-        - samples: batch_size x seq_len (Tensor with a sample in each row)
+    Inputs: inputs, targets, start_letter, cuda
+        - inputs: batch_size x seq_len (Tensor with a tokenized article in each row)
+        - targets: batch_size x seq_len (Tensor with a tokenized abstract in each row)
 
     Returns: inp, target
-        - inp: batch_size x seq_len (same as target, but with start_letter prepended)
-        - target: batch_size x seq_len (Variable same as samples)
+        - inp: batch_size x seq_len (same as input, but with start_letter prepended)
+        - target: batch_size x seq_len (Variable same as targets)
     """
 
-    batch_size, seq_len = samples.size()
+    batch_size, i_seq_len = inputs.size()
+    _, t_seq_len = targets.size()
 
-    inp = torch.zeros(batch_size, seq_len)
-    target = samples
+    inp = torch.zeros(batch_size, i_seq_len)
+    target = targets
     inp[:, 0] = start_letter
-    inp[:, 1:] = target[:, :seq_len-1]
+    inp[:, 1:] = inputs[:, :i_seq_len-1]
 
     inp = Variable(inp).type(torch.LongTensor)
     target = Variable(target).type(torch.LongTensor)
