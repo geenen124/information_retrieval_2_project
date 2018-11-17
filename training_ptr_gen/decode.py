@@ -74,8 +74,7 @@ class BeamSearch(object):
 
             # Extract the output ids from the hypothesis and convert back to words
             output_ids = [int(t) for t in best_summary.tokens[1:]]
-            decoded_words = data.outputids2words(output_ids, self.vocab,
-                                                 (batch.art_oovs[0] if config.pointer_gen else None))
+            decoded_words = data.outputids2words(output_ids, self.vocab, None)
 
             # Remove the [STOP] token from decoded_words, if necessary
             try:

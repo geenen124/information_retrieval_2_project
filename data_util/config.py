@@ -19,14 +19,14 @@ beam_size=4
 min_dec_steps=35
 vocab_size=50000
 
-lr=0.15
+lr=0.5
 adagrad_init_acc=0.1
 rand_unif_init_mag=0.02
 trunc_norm_init_std=1e-4
 max_grad_norm=2.0
 
-pointer_gen = True
-is_coverage = False
+pointer_gen = False
+is_coverage = True
 cov_loss_wt = 1.0
 
 eps = 1e-12
