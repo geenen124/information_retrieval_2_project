@@ -4,7 +4,7 @@ import torch.nn as nn
 
 class Discriminator(nn.Module):
 
-    def __init__(self, embedding_dim, hidden_dim, vocab_size, max_seq_len, gpu=False, dropout=0.2):
+    def __init__(self, embedding_dim, hidden_dim, vocab_size, gpu=False, dropout=0.2):
         super(Discriminator, self).__init__()
         self.hidden_dim = hidden_dim
         self.gpu = gpu

@@ -116,8 +116,9 @@ def train_discriminator(discriminator, dis_opt, inputs, targets, generator, d_st
         target_samples[count] = targets[idx]
 
     # generating a small validation set before training (using oracle and generator)
-    pos_val = oracle.sample(n_samples)
-    neg_val = generator.sample(n_samples)
+    pos_val = target_samples
+    neg_val = generator.sample(input_samples)
+    
     val_inp, val_target = helpers.prepare_discriminator_data(pos_val, neg_val, gpu=CUDA)
 
     for d_step in range(d_steps):
