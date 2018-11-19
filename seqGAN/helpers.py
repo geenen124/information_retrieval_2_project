@@ -1,6 +1,7 @@
 import torch
 from torch.autograd import Variable
 from math import ceil
+from random import shuffle
 
 def prepare_generator_batch(inputs, targets, start_letter, pad_id, gpu=False):
     """
@@ -48,8 +49,7 @@ def prepare_discriminator_data(pos_samples, neg_samples, gpu=False):
     Returns: inp, target
         - inp: (pos_size + neg_size) x seq_len
         - target: pos_size + neg_size (boolean 1/0)
-    """
-
+    """    
     inp = torch.cat((pos_samples, neg_samples), 0).type(torch.LongTensor)
     target = torch.ones(pos_samples.size()[0] + neg_samples.size()[0])
     target[pos_samples.size()[0]:] = 0
@@ -69,7 +69,7 @@ def prepare_discriminator_data(pos_samples, neg_samples, gpu=False):
     return inp, target
 
 
-def batchwise_sample(gen, num_samples, batch_size):
+def batchwise_sample(gen, inputs, targets, num_samples, batch_size):
     """
     Sample num_samples samples batch_size samples at a time from gen.
     Does not require gpu since gen.sample() takes care of that.
@@ -77,11 +77,25 @@ def batchwise_sample(gen, num_samples, batch_size):
 
     samples = []
     for i in range(int(ceil(num_samples/float(batch_size)))):
-        samples.append(gen.sample(batch_size))
+        input_samples, _ = random_from_data(inputs, targets, batch_size)
+        samples.append(gen.sample(input_samples))
 
     return torch.cat(samples, 0)[:num_samples]
 
+def random_from_data(inputs, targets, n_samples):
+    indices = [i for i in range(len(inputs))]
+    shuffle(indices)
+    indices = indices[:n_samples]
 
+    input_samples = torch.zeros(n_samples, inputs.shape[1])
+    target_samples = torch.zeros(n_samples, targets.shape[1])
+    
+    for count, idx in enumerate(indices):
+        input_samples[count] = inputs[idx]
+        target_samples[count] = targets[idx]
+    
+    return input_samples, target_samples
+    
 #def batchwise_oracle_nll(gen, oracle, num_samples, batch_size, max_seq_len, start_letter=0, gpu=False):
 #    s = batchwise_sample(gen, num_samples, batch_size)
 #    oracle_nll = 0

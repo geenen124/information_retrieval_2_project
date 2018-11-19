@@ -1,7 +1,6 @@
 from __future__ import print_function
 from math import ceil
 import sys
-from random import shuffle
 
 import torch
 import torch.optim as optim
@@ -19,7 +18,7 @@ CUDA = False
 BATCH_SIZE = 32
 MLE_TRAIN_EPOCHS = 0#100
 ADV_TRAIN_EPOCHS = 1#50
-POS_NEG_SAMPLES = 10000
+POS_NEG_SAMPLES = 100#10000
 
 GEN_EMBEDDING_DIM = 32
 GEN_HIDDEN_DIM = 32
@@ -104,26 +103,18 @@ def train_discriminator(discriminator, dis_opt, inputs, targets, generator, d_st
     """
     # Grab a random subset of inputs and their corresponding targets
     n_samples = 100
-    indices = [i for i in range(len(inputs))]
-    shuffle(indices)
-    indices = indices[:n_samples]
+    input_samples, target_samples = helpers.random_from_data(inputs, targets, n_samples)
 
-    input_samples = torch.zeros(n_samples, inputs.shape[1])
-    target_samples = torch.zeros(n_samples, targets.shape[1])
-    
-    for count, idx in enumerate(indices):
-        input_samples[count] = inputs[idx]
-        target_samples[count] = targets[idx]
-
-    # generating a small validation set before training (using oracle and generator)
+    # generating a small validation set before training (using real data and generator)
     pos_val = target_samples
-    neg_val = generator.sample(input_samples)
+    neg_val = generator.sample(input_samples).type(torch.FloatTensor)
     
     val_inp, val_target = helpers.prepare_discriminator_data(pos_val, neg_val, gpu=CUDA)
 
     for d_step in range(d_steps):
-        s = helpers.batchwise_sample(generator, POS_NEG_SAMPLES, BATCH_SIZE)
-        dis_inp, dis_target = helpers.prepare_discriminator_data(real_data_samples, s, gpu=CUDA)
+        s = helpers.batchwise_sample(generator, inputs, targets, POS_NEG_SAMPLES, BATCH_SIZE).type(torch.FloatTensor)
+        dis_inp, dis_target = helpers.prepare_discriminator_data(target_samples, s, gpu=CUDA)
+        
         for epoch in range(epochs):
             print('d-step %d epoch %d : ' % (d_step + 1, epoch + 1), end='')
             sys.stdout.flush()
@@ -132,6 +123,7 @@ def train_discriminator(discriminator, dis_opt, inputs, targets, generator, d_st
 
             for i in range(0, 2 * POS_NEG_SAMPLES, BATCH_SIZE):
                 inp, target = dis_inp[i:i + BATCH_SIZE], dis_target[i:i + BATCH_SIZE]
+                assert inp.size()[0] > 0, 'huh? ' + i
                 dis_opt.zero_grad()
                 out = discriminator.batchClassify(inp)
                 loss_fn = nn.BCELoss()
@@ -222,6 +214,8 @@ if __name__ == '__main__':
     
     # torch.save(dis.state_dict(), pretrained_dis_path)
     # dis.load_state_dict(torch.load(pretrained_dis_path))
+
+
     assert False
 
     # ADVERSARIAL TRAINING
