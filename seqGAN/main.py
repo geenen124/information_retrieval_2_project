@@ -16,8 +16,8 @@ from data_util.data import Vocab, example_generator, text_generator, abstract2se
 CUDA = False
 #MAX_SEQ_LEN = 20 #TODO: check this
 BATCH_SIZE = 32
-MLE_TRAIN_EPOCHS = 2#100
-ADV_TRAIN_EPOCHS = 2#50
+MLE_TRAIN_EPOCHS = 100
+ADV_TRAIN_EPOCHS = 50
 POS_NEG_SAMPLES = 100#10000
 
 GEN_EMBEDDING_DIM = 32
@@ -25,19 +25,13 @@ GEN_HIDDEN_DIM = 32
 DIS_EMBEDDING_DIM = 64
 DIS_HIDDEN_DIM = 64
 
-# oracle_samples_path = './oracle_samples.trc'
-# oracle_state_dict_path = './oracle_EMBDIM32_HIDDENDIM32_VOCAB5000_MAXSEQLEN20.trc'
-# pretrained_gen_path = './gen_MLEtrain_EMBDIM32_HIDDENDIM32_VOCAB5000_MAXSEQLEN20.trc'
-# pretrained_dis_path = './dis_pretrain_EMBDIM_64_HIDDENDIM64_VOCAB5000_MAXSEQLEN20.trc'
 
 VOCAB_SIZE = 50000
 VOCAB_PATH = "cnn-dailymail-master/finished_files/vocab"
 TRAIN_DATA_PATH = "cnn-dailymail-master/finished_files/chunked/train_*"
-############## DELETE THIS #######################
-TRAIN_DATA_PATH = "cnn-dailymail-master/finished_files/chunked/test_*"
 
-MAX_ENC_STEPS = 40#400 # ToDo: check this
-MAX_DEC_STEPS = 10#100 # ToDo: check this
+MAX_ENC_STEPS = 400 # ToDo: check this
+MAX_DEC_STEPS = 100 # ToDo: check this
 
 
 def train_generator_MLE(gen, gen_opt, inputs, targets, epochs, start_letter, pad_id):
