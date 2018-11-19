@@ -16,8 +16,8 @@ from data_util.data import Vocab, example_generator, text_generator, abstract2se
 CUDA = False
 #MAX_SEQ_LEN = 20 #TODO: check this
 BATCH_SIZE = 32
-MLE_TRAIN_EPOCHS = 0#100
-ADV_TRAIN_EPOCHS = 1#50
+MLE_TRAIN_EPOCHS = 2#100
+ADV_TRAIN_EPOCHS = 2#50
 POS_NEG_SAMPLES = 100#10000
 
 GEN_EMBEDDING_DIM = 32
@@ -73,15 +73,21 @@ def train_generator_MLE(gen, gen_opt, inputs, targets, epochs, start_letter, pad
         print(' average_train_NLL = %.4f' % total_loss)
 
 
-def train_generator_PG(gen, gen_opt, oracle, dis, num_batches, start_letter):
+def train_generator_PG(gen, gen_opt, dis, num_batches, inputs, targets, start_letter, pad_id):
     """
     The generator is trained using policy gradients, using the reward from the discriminator.
     Training is done for num_batches batches.
     """
+    n_samples = BATCH_SIZE*2    # 64 works best
 
-    for batch in range(num_batches):
-        s = gen.sample(BATCH_SIZE*2)        # 64 works best
-        inp, target = helpers.prepare_generator_batch(s, start_letter, gpu=CUDA)
+    for batch in range(num_batches):        
+        input_samples, _ = helpers.random_from_data(inputs, targets, n_samples)
+        s = gen.sample(input_samples)        
+        inp, target = helpers.prepare_generator_batch(input_samples,
+                                                      s, 
+                                                      start_letter, 
+                                                      pad_id,
+                                                      gpu=CUDA)
         rewards = dis.batchClassify(target)
 
         gen_opt.zero_grad()
@@ -90,10 +96,10 @@ def train_generator_PG(gen, gen_opt, oracle, dis, num_batches, start_letter):
         gen_opt.step()
 
     # sample from generator and compute oracle NLL
-    oracle_loss = helpers.batchwise_oracle_nll(gen, oracle, POS_NEG_SAMPLES, BATCH_SIZE, MAX_SEQ_LEN,
-                                                   start_letter, gpu=CUDA)
-
-    print(' oracle_sample_NLL = %.4f' % oracle_loss)
+#    oracle_loss = helpers.batchwise_oracle_nll(gen, oracle, POS_NEG_SAMPLES, BATCH_SIZE, MAX_SEQ_LEN,
+#                                                   start_letter, gpu=CUDA)
+#
+#    print(' oracle_sample_NLL = %.4f' % oracle_loss)
 
 
 def train_discriminator(discriminator, dis_opt, inputs, targets, generator, d_steps, epochs):
@@ -216,21 +222,19 @@ if __name__ == '__main__':
     # dis.load_state_dict(torch.load(pretrained_dis_path))
 
 
-    assert False
-
     # ADVERSARIAL TRAINING
     print('\nStarting Adversarial Training...')
-    oracle_loss = helpers.batchwise_oracle_nll(gen, oracle, POS_NEG_SAMPLES, BATCH_SIZE, MAX_SEQ_LEN,
-                                               start_letter, gpu=CUDA)
-    print('\nInitial Oracle Sample Loss : %.4f' % oracle_loss)
+#    oracle_loss = helpers.batchwise_oracle_nll(gen, oracle, POS_NEG_SAMPLES, BATCH_SIZE, MAX_SEQ_LEN,
+#                                               start_letter, gpu=CUDA)
+#    print('\nInitial Oracle Sample Loss : %.4f' % oracle_loss)
 
     for epoch in range(ADV_TRAIN_EPOCHS):
         print('\n--------\nEPOCH %d\n--------' % (epoch+1))
         # TRAIN GENERATOR
         print('\nAdversarial Training Generator : ', end='')
         sys.stdout.flush()
-        train_generator_PG(gen, gen_optimizer, oracle, dis, 1, start_letter)
+        train_generator_PG(gen, gen_optimizer, dis, 1, articles, abstracts, start_letter, pad_id)
 
         # TRAIN DISCRIMINATOR
         print('\nAdversarial Training Discriminator : ')
-        train_discriminator(dis, dis_optimizer, oracle_samples, gen, oracle, 5, 3)
+        train_discriminator(dis, dis_optimizer, articles, abstracts, gen, 5, 3)
