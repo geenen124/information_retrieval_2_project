@@ -2,7 +2,7 @@ import torch
 from torch.autograd import Variable
 from math import ceil
 
-def prepare_generator_batch(inputs, targets, start_letter, gpu=False):
+def prepare_generator_batch(inputs, targets, start_letter, pad_id, gpu=False):
     """
     Takes a batch of inputs and targets and returns
 
@@ -17,11 +17,15 @@ def prepare_generator_batch(inputs, targets, start_letter, gpu=False):
 
     batch_size, i_seq_len = inputs.size()
     _, t_seq_len = targets.size()
+    
+    assert i_seq_len >= t_seq_len, "Is the abstract longer than the original?"
 
     inp = torch.zeros(batch_size, i_seq_len)
-    target = targets
     inp[:, 0] = start_letter
     inp[:, 1:] = inputs[:, :i_seq_len-1]
+    
+    target = torch.ones(batch_size, i_seq_len) * pad_id
+    target[:, :t_seq_len] = targets[:, :]
 
     inp = Variable(inp).type(torch.LongTensor)
     target = Variable(target).type(torch.LongTensor)
@@ -78,12 +82,18 @@ def batchwise_sample(gen, num_samples, batch_size):
     return torch.cat(samples, 0)[:num_samples]
 
 
-def batchwise_oracle_nll(gen, oracle, num_samples, batch_size, max_seq_len, start_letter=0, gpu=False):
-    s = batchwise_sample(gen, num_samples, batch_size)
-    oracle_nll = 0
-    for i in range(0, num_samples, batch_size):
-        inp, target = prepare_generator_batch(s[i:i+batch_size], start_letter, gpu)
-        oracle_loss = oracle.batchNLLLoss(inp, target) / max_seq_len
-        oracle_nll += oracle_loss.data.item()
+#def batchwise_oracle_nll(gen, oracle, num_samples, batch_size, max_seq_len, start_letter=0, gpu=False):
+#    s = batchwise_sample(gen, num_samples, batch_size)
+#    oracle_nll = 0
+#    for i in range(0, num_samples, batch_size):
+#        inp, target = prepare_generator_batch(s[i:i+batch_size], start_letter, gpu)
+#        oracle_loss = oracle.batchNLLLoss(inp, target) / max_seq_len
+#        oracle_nll += oracle_loss.data.item()
+#
+#    return oracle_nll/(num_samples/batch_size)
 
-    return oracle_nll/(num_samples/batch_size)
+#def batchwise_nll(gen, inputs, targets, num_samples, batch_size, max_seq_len, start_letter=0, gpu=False):
+#    s = batchwise_sample(gen, num_samples, batch_size)
+#    nll = 0
+#    for i in range(0, num_samples, batch_size):
+#        inp, target = prepare_generator_batch(, start_letter, gpu)

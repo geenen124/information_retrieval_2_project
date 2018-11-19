@@ -2,7 +2,7 @@ import torch
 import torch.autograd as autograd
 import torch.nn as nn
 import torch.nn.functional as F
-import torch.nn.init as init
+#import torch.nn.init as init
 
 
 class Generator(nn.Module):
@@ -21,9 +21,9 @@ class Generator(nn.Module):
 
         # initialise oracle network with N(0,1)
         # otherwise variance of initialisation is very small => high NLL for data sampled from the same model
-        if oracle_init:
-            for p in self.parameters():
-                init.normal(p, 0, 1)
+#        if oracle_init:
+#            for p in self.parameters():
+#                init.normal(p, 0, 1)
 
     def init_hidden(self, batch_size=1):
         h = autograd.Variable(torch.zeros(1, batch_size, self.hidden_dim))
@@ -45,7 +45,7 @@ class Generator(nn.Module):
         out = F.log_softmax(out, dim=1)
         return out, hidden
 
-    def sample(self, num_samples, start_letter=0):
+    def sample(self, num_samples, start_letter):
         """
         Samples the network and returns num_samples samples of length max_seq_len.
 

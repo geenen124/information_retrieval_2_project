@@ -10,14 +10,14 @@ import generator
 import discriminator
 import helpers
 
-from data_util.data import Vocab, example_generator, text_generator, abstract2sents, START_DECODING, PAD_TOKEN
+from data_util.data import Vocab, example_generator, text_generator, abstract2sents, START_DECODING, STOP_DECODING, PAD_TOKEN
 
 
 CUDA = False
 #MAX_SEQ_LEN = 20 #TODO: check this
 BATCH_SIZE = 32
-MLE_TRAIN_EPOCHS = 100
-ADV_TRAIN_EPOCHS = 50
+MLE_TRAIN_EPOCHS = 10#100
+ADV_TRAIN_EPOCHS = 1#50
 POS_NEG_SAMPLES = 10000
 
 GEN_EMBEDDING_DIM = 32
@@ -36,11 +36,11 @@ TRAIN_DATA_PATH = "cnn-dailymail-master/finished_files/chunked/train_*"
 ############## DELETE THIS #######################
 TRAIN_DATA_PATH = "cnn-dailymail-master/finished_files/chunked/test_*"
 
-MAX_ENC_STEPS = 400 # ToDo: check this
-MAX_DEC_STEPS = 100 # ToDo: check this
+MAX_ENC_STEPS = 40#400 # ToDo: check this
+MAX_DEC_STEPS = 10#100 # ToDo: check this
 
 
-def train_generator_MLE(gen, gen_opt, oracle, inputs, targets, epochs, start_letter):
+def train_generator_MLE(gen, gen_opt, inputs, targets, epochs, start_letter, pad_id):
     """
     Max Likelihood Pretraining for the generator
     """
@@ -53,6 +53,7 @@ def train_generator_MLE(gen, gen_opt, oracle, inputs, targets, epochs, start_let
             inp, target = helpers.prepare_generator_batch(inputs[i:i + BATCH_SIZE],
                                                           targets[i:i + BATCH_SIZE],
                                                           start_letter,
+                                                          pad_id,
                                                           gpu=CUDA)
             gen_opt.zero_grad()
             loss = gen.batchNLLLoss(inp, target)
@@ -69,11 +70,12 @@ def train_generator_MLE(gen, gen_opt, oracle, inputs, targets, epochs, start_let
         # each loss in a batch is loss per sample
         total_loss = total_loss / ceil(POS_NEG_SAMPLES / float(BATCH_SIZE)) / MAX_DEC_STEPS
 
-        # sample from generator and compute oracle NLL
-        oracle_loss = helpers.batchwise_oracle_nll(gen, oracle, POS_NEG_SAMPLES, BATCH_SIZE, MAX_SEQ_LEN,
-                                                   start_letter, gpu=CUDA)
+        # sample from generator and compute NLL
+#        oracle_loss = helpers.batchwise_nll(gen, oracle, POS_NEG_SAMPLES, BATCH_SIZE, MAX_DEC_STEPS,
+#                                                   start_letter, gpu=CUDA)
 
-        print(' average_train_NLL = %.4f, oracle_sample_NLL = %.4f' % (total_loss, oracle_loss))
+#        print(' average_train_NLL = %.4f, oracle_sample_NLL = %.4f' % (total_loss, oracle_loss))
+        print(' average_train_NLL = %.4f' % total_loss)
 
 
 def train_generator_PG(gen, gen_opt, oracle, dis, num_batches, start_letter):
@@ -153,6 +155,7 @@ if __name__ == '__main__':
 
     vocab = Vocab(VOCAB_PATH, VOCAB_SIZE)
     start_letter = vocab.word2id(START_DECODING)
+    stop_letter = vocab.word2id(STOP_DECODING)
     pad_id = vocab.word2id(PAD_TOKEN)
     
     text_gen = text_generator(example_generator(TRAIN_DATA_PATH, single_pass=True))
@@ -176,6 +179,8 @@ if __name__ == '__main__':
 
         if len(abstract_tokens) > MAX_DEC_STEPS:
             abstract_tokens = abstract_tokens[:MAX_DEC_STEPS]
+        elif len(abstract_tokens) < MAX_DEC_STEPS:
+            abstract_tokens.append(stop_letter)
 
         # Pad # ToDo: check
         while len(article_tokens) < MAX_ENC_STEPS:
@@ -201,7 +206,9 @@ if __name__ == '__main__':
     # GENERATOR MLE TRAINING
     print('Starting Generator MLE Training...')
     gen_optimizer = optim.Adam(gen.parameters(), lr=1e-2)
-    train_generator_MLE(gen, gen_optimizer, oracle, articles, abstracts, MLE_TRAIN_EPOCHS, start_letter)
+    train_generator_MLE(gen, gen_optimizer, articles, abstracts, MLE_TRAIN_EPOCHS, start_letter, pad_id)
+
+    assert False
 
     # torch.save(gen.state_dict(), pretrained_gen_path)
     # gen.load_state_dict(torch.load(pretrained_gen_path))
