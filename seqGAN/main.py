@@ -30,8 +30,8 @@ VOCAB_SIZE = 50000
 VOCAB_PATH = "cnn-dailymail-master/finished_files/vocab"
 TRAIN_DATA_PATH = "cnn-dailymail-master/finished_files/chunked/train_*"
 
-MAX_ENC_STEPS = 400 # ToDo: check this
-MAX_DEC_STEPS = 100 # ToDo: check this
+MAX_ENC_STEPS = 400
+MAX_DEC_STEPS = 100
 
 
 def train_generator_MLE(gen, gen_opt, inputs, targets, epochs, start_letter, pad_id):

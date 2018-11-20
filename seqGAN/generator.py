@@ -19,12 +19,6 @@ class Generator(nn.Module):
         self.gru = nn.GRU(embedding_dim, hidden_dim)
         self.gru2out = nn.Linear(hidden_dim, vocab_size)
 
-        # initialise oracle network with N(0,1)
-        # otherwise variance of initialisation is very small => high NLL for data sampled from the same model
-#        if oracle_init:
-#            for p in self.parameters():
-#                init.normal(p, 0, 1)
-
     def init_hidden(self, batch_size=1):
         h = autograd.Variable(torch.zeros(1, batch_size, self.hidden_dim))
 
