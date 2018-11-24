@@ -8,7 +8,7 @@ import torch
 from model import Model
 from torch.nn.utils import clip_grad_norm_
 
-from torch.optim import Adagrad
+from torch.optim import Adagrad, Adam
 
 from data_util import config
 from data_util.batcher import Batcher
@@ -52,7 +52,8 @@ class Train(object):
         params = list(self.model.encoder.parameters()) + list(self.model.decoder.parameters()) + \
                  list(self.model.reduce_state.parameters())
         initial_lr = config.lr_coverage if config.is_coverage else config.lr
-        self.optimizer = Adagrad(params, lr=initial_lr, initial_accumulator_value=config.adagrad_init_acc)
+        #self.optimizer = Adagrad(params, lr=initial_lr, initial_accumulator_value=config.adagrad_init_acc)
+        self.optimizer = Adam(params, lr=initial_lr)
 
         start_iter, start_loss = 0, 0
 
@@ -131,7 +132,7 @@ class Train(object):
                 print('steps %d, seconds for %d batch: %.2f , loss: %f' % (iter, print_interval,
                                                                            time.time() - start, loss))
                 start = time.time()
-            if iter % 5000 == 0:
+            if iter % 1000 == 0:
                 self.save_model(running_avg_loss, iter)
 
 if __name__ == '__main__':
