@@ -43,7 +43,7 @@ class TrainSeq2Seq(object):
         model_save_path = os.path.join(self.model_dir, 'model_%d_%d' % (iter, int(time.time())))
         torch.save(state, model_save_path)
 
-    def setup_train(self, container, model_file_path):
+    def setup(self, container, model_file_path):
         self.model = container.seqseq_model
 
         params = list(self.model.encoder.parameters()) + list(self.model.decoder.parameters()) + \
@@ -54,22 +54,22 @@ class TrainSeq2Seq(object):
 
         start_iter, start_loss = 0, 0
 
-        # if model_file_path is not None:
-        #     state = torch.load(model_file_path, map_location= lambda storage, location: storage)
-        #     start_iter = state['iter']
-        #     start_loss = state['current_loss']
+        if model_file_path is not None:
+            state = torch.load(model_file_path, map_location= lambda storage, location: storage)
+            start_iter = state['iter']
+            start_loss = state['current_loss']
 
-        #     if not is_coverage:
-        #         self.optimizer.load_state_dict(state['optimizer'])
-        #         if config.use_gpu:
-        #             for state in self.optimizer.state.values():
-        #                 for k, v in state.items():
-        #                     if torch.is_tensor(v):
-        #                         state[k] = v.cuda()
+            if not config.is_coverage:
+                self.optimizer.load_state_dict(state['optimizer'])
+                if config.use_gpu:
+                    for state in self.optimizer.state.values():
+                        for k, v in state.items():
+                            if torch.is_tensor(v):
+                                state[k] = v.cuda()
 
         return start_iter, start_loss
 
-    def train_one_batch(self, batch):
+    def train_one_batch_nll(self, batch):
         enc_batch, enc_padding_mask, enc_lens, enc_batch_extend_vocab, extra_zeros, c_t_1, coverage = \
             get_input_from_batch(batch, config.use_gpu)
         dec_batch, dec_padding_mask, max_dec_len, dec_lens_var, target_batch = \
@@ -113,12 +113,11 @@ class TrainSeq2Seq(object):
 
         return loss.item()
 
-    def train(self, container, n_iters, model_file_path=None):
-        iter, running_avg_loss = self.setup_train(container, model_file_path)
+    def train_nll(self, n_iters, iter, running_avg_loss):
         start = time.time()
         while iter < n_iters:
             batch = self.batcher.next_batch()
-            loss = self.train_one_batch(batch)
+            loss = self.train_one_batch_nll(batch)
 
             running_avg_loss = calc_running_avg_loss(loss, running_avg_loss, iter)
             print("Iteration:", iter, "  loss:", loss, "  Running avg loss:", running_avg_loss)
@@ -132,3 +131,6 @@ class TrainSeq2Seq(object):
             if iter % 1000 == 0:
                 self.save_model(running_avg_loss, iter)
 
+
+    def train_pg(self):
+        pass

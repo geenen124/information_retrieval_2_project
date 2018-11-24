@@ -61,30 +61,6 @@ class Generator(nn.Module):
 
         return samples
 
-    def batchNLLLoss(self, inp, target):
-        """
-        Returns the NLL Loss for predicting target sequence.
-
-        Inputs: inp, target
-            - inp: batch_size x seq_len
-            - target: batch_size x seq_len
-
-            inp should be target with <s> (start letter) prepended
-        """
-
-        loss_fn = nn.NLLLoss()
-        batch_size, seq_len = inp.size()
-        inp = inp.permute(1, 0)           # seq_len x batch_size
-        target = target.permute(1, 0)     # seq_len x batch_size
-        h = self.init_hidden(batch_size)
-
-        loss = 0
-        for i in range(seq_len):
-            out, h = self.forward(inp[i], h)
-            loss += loss_fn(out, target[i]) # toDo: Does this make any sense?
-
-        return loss     # per batch
-
     def batchPGLoss(self, inp, target, reward):
         """
         Returns a pseudo-loss that gives corresponding policy gradients (on calling .backward()).
