@@ -10,13 +10,13 @@ import generator
 import discriminator
 import helpers
 
-from data_util.data import Vocab, example_generator, text_generator, abstract2sents, START_DECODING, STOP_DECODING, PAD_TOKEN
+# from data_util.data import Vocab, example_generator, text_generator, abstract2sents, START_DECODING, STOP_DECODING, PAD_TOKEN
+from trainer import TrainSeq2Seq
 
-
-CUDA = False
+CUDA = torch.cuda.is_available()
 #MAX_SEQ_LEN = 20 #TODO: check this
-BATCH_SIZE = 32
-MLE_TRAIN_EPOCHS = 100
+BATCH_SIZE = 16#32
+MLE_TRAIN_EPOCHS = 2#100
 ADV_TRAIN_EPOCHS = 50
 POS_NEG_SAMPLES = 100#10000
 
@@ -29,42 +29,19 @@ DIS_HIDDEN_DIM = 64
 VOCAB_SIZE = 50000
 VOCAB_PATH = "cnn-dailymail-master/finished_files/vocab"
 TRAIN_DATA_PATH = "cnn-dailymail-master/finished_files/chunked/train_*"
+TRAIN_DATA_PATH = "cnn-dailymail-master/finished_files/chunked/val_*"
 
 MAX_ENC_STEPS = 400
 MAX_DEC_STEPS = 100
 
 
-def train_generator_MLE(gen, gen_opt, inputs, targets, epochs, start_letter, pad_id):
+def train_generator_MLE(gen, gen_opt, train_processor, epochs):
     """
     Max Likelihood Pretraining for the generator
     """
-    for epoch in range(epochs):
-        print('epoch %d : ' % (epoch + 1), end='')
-        sys.stdout.flush()
-        total_loss = 0
-
-        for i in range(0, POS_NEG_SAMPLES, BATCH_SIZE):
-            inp, target = helpers.prepare_generator_batch(inputs[i:i + BATCH_SIZE],
-                                                          targets[i:i + BATCH_SIZE],
-                                                          start_letter,
-                                                          pad_id,
-                                                          gpu=CUDA)
-            gen_opt.zero_grad()
-            loss = gen.batchNLLLoss(inp, target)
-            loss.backward()
-            gen_opt.step()
-
-            total_loss += loss.data.item()
-
-            if (i / BATCH_SIZE) % ceil(
-                            ceil(POS_NEG_SAMPLES / float(BATCH_SIZE)) / 10.) == 0:  # roughly every 10% of an epoch
-                print('.', end='')
-                sys.stdout.flush()
-
-        # each loss in a batch is loss per sample
-        total_loss = total_loss / ceil(POS_NEG_SAMPLES / float(BATCH_SIZE)) / MAX_DEC_STEPS
-
-        print(' average_train_NLL = %.4f' % total_loss)
+    
+    # Use seq-seq model
+    train_processor.train(epochs)
 
 
 def train_generator_PG(gen, gen_opt, dis, num_batches, inputs, targets, start_letter, pad_id):
@@ -148,48 +125,8 @@ def train_discriminator(discriminator, dis_opt, inputs, targets, generator, d_st
 
 # MAIN
 if __name__ == '__main__':
-    # Load data
-    vocab = Vocab(VOCAB_PATH, VOCAB_SIZE)
-    start_letter = vocab.word2id(START_DECODING)
-    stop_letter = vocab.word2id(STOP_DECODING)
-    pad_id = vocab.word2id(PAD_TOKEN)
-    
-    text_gen = text_generator(example_generator(TRAIN_DATA_PATH, single_pass=True))
-    
-    articles = []
-    abstracts = []
-    
-    counter = 0
-    for article, abstract in text_gen:
-        # Tokenize article
-        article_words = article.split()
-        if len(article_words) > MAX_ENC_STEPS:
-            article_words = article_words[:MAX_ENC_STEPS]        
-        article_tokens = [vocab.word2id(w) for w in article_words] # list of word ids; OOVs are represented by the id for UNK token
-        
-        # Tokenize abstract
-        abstract_sentences = [sent.strip() for sent in abstract2sents(abstract)] # Use the <s> and </s> tags in abstract to get a list of sentences.
-        abstract_joined = ' '.join(abstract_sentences) # string
-        abstract_words = abstract_joined.split() # list of strings
-        abstract_tokens = [vocab.word2id(w) for w in abstract_words] # list of word ids; OOVs are represented by the id for UNK token
-
-        if len(abstract_tokens) > MAX_DEC_STEPS:
-            abstract_tokens = abstract_tokens[:MAX_DEC_STEPS]
-        elif len(abstract_tokens) < MAX_DEC_STEPS:
-            abstract_tokens.append(stop_letter)
-
-        # Pad # ToDo: check
-        while len(article_tokens) < MAX_ENC_STEPS:
-            article_tokens.append(pad_id)
-            
-        while len(abstract_tokens) < MAX_DEC_STEPS:
-            abstract_tokens.append(pad_id)
-
-        articles.append(torch.LongTensor(article_tokens))
-        abstracts.append(torch.LongTensor(abstract_tokens))
-        
-    articles = torch.stack(articles)
-    abstracts = torch.stack(abstracts)
+    # Set up train, load data
+    train_processor = TrainSeq2Seq(VOCAB_PATH, VOCAB_SIZE, TRAIN_DATA_PATH, BATCH_SIZE, CUDA)
 
     # Models
     gen = generator.Generator(GEN_EMBEDDING_DIM, GEN_HIDDEN_DIM, VOCAB_SIZE, MAX_DEC_STEPS, gpu=CUDA)
@@ -202,7 +139,7 @@ if __name__ == '__main__':
     # GENERATOR MLE TRAINING
     print('Starting Generator MLE Training...')
     gen_optimizer = optim.Adam(gen.parameters(), lr=1e-2)
-    train_generator_MLE(gen, gen_optimizer, articles, abstracts, MLE_TRAIN_EPOCHS, start_letter, pad_id)
+    train_generator_MLE(gen, gen_optimizer, train_processor, MLE_TRAIN_EPOCHS)
 
     # torch.save(gen.state_dict(), pretrained_gen_path)
     # gen.load_state_dict(torch.load(pretrained_gen_path))
@@ -210,7 +147,7 @@ if __name__ == '__main__':
     # PRETRAIN DISCRIMINATOR
     print('\nStarting Discriminator Training...')
     dis_optimizer = optim.Adagrad(dis.parameters())
-    train_discriminator(dis, dis_optimizer, articles, abstracts, gen, 50, 3)
+    # train_discriminator(dis, dis_optimizer, articles, abstracts, gen, 50, 3)
     
     # torch.save(dis.state_dict(), pretrained_dis_path)
     # dis.load_state_dict(torch.load(pretrained_dis_path))
@@ -222,13 +159,13 @@ if __name__ == '__main__':
 #                                               start_letter, gpu=CUDA)
 #    print('\nInitial Oracle Sample Loss : %.4f' % oracle_loss)
 
-    for epoch in range(ADV_TRAIN_EPOCHS):
-        print('\n--------\nEPOCH %d\n--------' % (epoch+1))
-        # TRAIN GENERATOR
-        print('\nAdversarial Training Generator : ', end='')
-        sys.stdout.flush()
-        train_generator_PG(gen, gen_optimizer, dis, 1, articles, abstracts, start_letter, pad_id)
+    # for epoch in range(ADV_TRAIN_EPOCHS):
+    #     print('\n--------\nEPOCH %d\n--------' % (epoch+1))
+    #     # TRAIN GENERATOR
+    #     print('\nAdversarial Training Generator : ', end='')
+    #     sys.stdout.flush()
+    #     train_generator_PG(gen, gen_optimizer, dis, 1, articles, abstracts, start_letter, pad_id)
 
-        # TRAIN DISCRIMINATOR
-        print('\nAdversarial Training Discriminator : ')
-        train_discriminator(dis, dis_optimizer, articles, abstracts, gen, 5, 3)
+    #     # TRAIN DISCRIMINATOR
+    #     print('\nAdversarial Training Discriminator : ')
+    #     train_discriminator(dis, dis_optimizer, articles, abstracts, gen, 5, 3)
