@@ -5,7 +5,6 @@ import time
 import argparse
 
 import torch
-from training_ptr_gen.model import Model
 from torch.nn.utils import clip_grad_norm_
 
 from torch.optim import Adagrad, Adam
@@ -13,23 +12,15 @@ from torch.optim import Adagrad, Adam
 from data_util.batcher import Batcher
 from data_util.data import Vocab
 from data_util.utils import calc_running_avg_loss
+from data_util import config
 from training_ptr_gen.train_util import get_input_from_batch, get_output_from_batch
-
-is_coverage = False
-lr=0.5
-lr_coverage=0.15
-max_dec_steps=100
-cov_loss_wt = 1.0
-eps = 1e-12
-max_grad_norm=2.0
 
 
 class TrainSeq2Seq(object):
-    def __init__(self, vocab_path, vocab_size, train_data_path, batch_size, use_gpu):
-        self.use_cuda = use_gpu
-        self.vocab = Vocab(vocab_path, vocab_size)
-        self.batcher = Batcher(train_data_path, self.vocab, mode='train',
-                               batch_size=batch_size, single_pass=False)
+    def __init__(self):
+        self.vocab = Vocab(config.vocab_path, config.vocab_size)
+        self.batcher = Batcher(config.train_data_path, self.vocab, mode='train',
+                               batch_size=config.batch_size, single_pass=False)
         time.sleep(15)
 
         train_dir = './train_log'
@@ -52,37 +43,37 @@ class TrainSeq2Seq(object):
         model_save_path = os.path.join(self.model_dir, 'model_%d_%d' % (iter, int(time.time())))
         torch.save(state, model_save_path)
 
-    def setup_train(self, model_file_path=None):
-        self.model = Model(model_file_path)
+    def setup_train(self, container, model_file_path):
+        self.model = container.seqseq_model
 
         params = list(self.model.encoder.parameters()) + list(self.model.decoder.parameters()) + \
                  list(self.model.reduce_state.parameters())
-        initial_lr = lr_coverage if is_coverage else lr
+        initial_lr = config.lr_coverage if config.is_coverage else config.lr
         #self.optimizer = Adagrad(params, lr=initial_lr, initial_accumulator_value=config.adagrad_init_acc)
         self.optimizer = Adam(params, lr=initial_lr)
 
         start_iter, start_loss = 0, 0
 
-        if model_file_path is not None:
-            state = torch.load(model_file_path, map_location= lambda storage, location: storage)
-            start_iter = state['iter']
-            start_loss = state['current_loss']
+        # if model_file_path is not None:
+        #     state = torch.load(model_file_path, map_location= lambda storage, location: storage)
+        #     start_iter = state['iter']
+        #     start_loss = state['current_loss']
 
-            if not is_coverage:
-                self.optimizer.load_state_dict(state['optimizer'])
-                if self.use_cuda:
-                    for state in self.optimizer.state.values():
-                        for k, v in state.items():
-                            if torch.is_tensor(v):
-                                state[k] = v.cuda()
+        #     if not is_coverage:
+        #         self.optimizer.load_state_dict(state['optimizer'])
+        #         if config.use_gpu:
+        #             for state in self.optimizer.state.values():
+        #                 for k, v in state.items():
+        #                     if torch.is_tensor(v):
+        #                         state[k] = v.cuda()
 
         return start_iter, start_loss
 
     def train_one_batch(self, batch):
         enc_batch, enc_padding_mask, enc_lens, enc_batch_extend_vocab, extra_zeros, c_t_1, coverage = \
-            get_input_from_batch(batch, self.use_cuda)
+            get_input_from_batch(batch, config.use_gpu)
         dec_batch, dec_padding_mask, max_dec_len, dec_lens_var, target_batch = \
-            get_output_from_batch(batch, self.use_cuda)
+            get_output_from_batch(batch, config.use_gpu)
 
         self.optimizer.zero_grad()
 
@@ -90,7 +81,7 @@ class TrainSeq2Seq(object):
         s_t_1 = self.model.reduce_state(encoder_hidden)
 
         step_losses = []
-        for di in range(min(max_dec_len, max_dec_steps)):
+        for di in range(min(max_dec_len, config.max_dec_steps)):
             y_t_1 = dec_batch[:, di]  # Teacher forcing
             final_dist, s_t_1,  c_t_1, attn_dist, p_gen, next_coverage = self.model.decoder(y_t_1, s_t_1,
                                                         encoder_outputs, encoder_feature, enc_padding_mask, c_t_1,
@@ -98,10 +89,10 @@ class TrainSeq2Seq(object):
                                                                            coverage, di)
             target = target_batch[:, di]
             gold_probs = torch.gather(final_dist, 1, target.unsqueeze(1)).squeeze()
-            step_loss = -torch.log(gold_probs + eps)
-            if is_coverage:
+            step_loss = -torch.log(gold_probs + config.eps)
+            if config.is_coverage:
                 step_coverage_loss = torch.sum(torch.min(attn_dist, coverage), 1)
-                step_loss = step_loss + cov_loss_wt * step_coverage_loss
+                step_loss = step_loss + config.cov_loss_wt * step_coverage_loss
                 coverage = next_coverage
                 
             step_mask = dec_padding_mask[:, di]
@@ -114,16 +105,16 @@ class TrainSeq2Seq(object):
 
         loss.backward()
 
-        self.norm = clip_grad_norm_(self.model.encoder.parameters(), max_grad_norm)
-        clip_grad_norm_(self.model.decoder.parameters(), max_grad_norm)
-        clip_grad_norm_(self.model.reduce_state.parameters(), max_grad_norm)
+        self.norm = clip_grad_norm_(self.model.encoder.parameters(), config.max_grad_norm)
+        clip_grad_norm_(self.model.decoder.parameters(), config.max_grad_norm)
+        clip_grad_norm_(self.model.reduce_state.parameters(), config.max_grad_norm)
 
         self.optimizer.step()
 
         return loss.item()
 
-    def train(self, n_iters, model_file_path=None):
-        iter, running_avg_loss = self.setup_train(model_file_path)
+    def train(self, container, n_iters, model_file_path=None):
+        iter, running_avg_loss = self.setup_train(container, model_file_path)
         start = time.time()
         while iter < n_iters:
             batch = self.batcher.next_batch()

@@ -2,30 +2,23 @@ import torch
 import torch.autograd as autograd
 import torch.nn as nn
 import torch.nn.functional as F
-#import torch.nn.init as init
+
+from training_ptr_gen.model import Model
 
 
 class Generator(nn.Module):
 
-    def __init__(self, embedding_dim, hidden_dim, vocab_size, max_seq_len, gpu=False):
+    def __init__(self):
         super(Generator, self).__init__()
-        self.hidden_dim = hidden_dim
-        self.embedding_dim = embedding_dim
-        self.max_seq_len = max_seq_len
-        self.vocab_size = vocab_size
-        self.gpu = gpu
+        self.seqseq_model = Model(model_file_path=None)
 
-        self.embeddings = nn.Embedding(vocab_size, embedding_dim)
-        self.gru = nn.GRU(embedding_dim, hidden_dim)
-        self.gru2out = nn.Linear(hidden_dim, vocab_size)
+    # def init_hidden(self, batch_size=1):
+    #     h = autograd.Variable(torch.zeros(1, batch_size, self.hidden_dim))
 
-    def init_hidden(self, batch_size=1):
-        h = autograd.Variable(torch.zeros(1, batch_size, self.hidden_dim))
-
-        if self.gpu:
-            return h.cuda()
-        else:
-            return h
+    #     if self.gpu:
+    #         return h.cuda()
+    #     else:
+    #         return h
 
     def forward(self, inp, hidden):
         """
@@ -34,7 +27,7 @@ class Generator(nn.Module):
         # input dim                                             # batch_size
         emb = self.embeddings(inp)                              # batch_size x embedding_dim
         emb = emb.view(1, -1, self.embedding_dim)               # 1 x batch_size x embedding_dim
-        out, hidden = self.gru(emb, hidden)                     # 1 x batch_size x hidden_dim (out)
+        out, hidden = self.gmodelmodelru(emb, hidden)                     # 1 x batch_size x hidden_dim (out)
         out = self.gru2out(out.view(-1, self.hidden_dim))       # batch_size x vocab_size
         out = F.log_softmax(out, dim=1)
         return out, hidden

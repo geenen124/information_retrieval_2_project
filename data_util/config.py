@@ -4,6 +4,12 @@ root_dir = os.path.expanduser("./")
 
 train_data_path = os.path.join(root_dir, "cnn-dailymail-master/finished_files/train.bin")
 train_data_path = os.path.join(root_dir, "cnn-dailymail-master/finished_files/chunked/train_*")
+
+
+### Remove
+train_data_path = os.path.join(root_dir, "cnn-dailymail-master/finished_files/chunked/val_*")
+### Remove
+
 eval_data_path = os.path.join(root_dir, "cnn-dailymail-master/finished_files/val.bin")
 decode_data_path = os.path.join(root_dir, "cnn-dailymail-master/finished_files/test.bin")
 vocab_path = os.path.join(root_dir, "cnn-dailymail-master/finished_files/vocab")
@@ -26,12 +32,12 @@ trunc_norm_init_std=1e-4
 max_grad_norm=2.0
 
 pointer_gen = False
-is_coverage = True
+is_coverage = False
 cov_loss_wt = 1.0
 
 eps = 1e-12
 max_iterations = 500000
 
-use_gpu=True
+use_gpu=False
 
 lr_coverage=0.15
