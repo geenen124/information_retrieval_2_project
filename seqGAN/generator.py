@@ -4,6 +4,9 @@ import torch.nn as nn
 import torch.nn.functional as F
 
 from training_ptr_gen.model import Model
+from data_util import config
+from helpers import random_from_data
+from training_ptr_gen.train_util import get_input_from_batch, get_output_from_batch
 
 
 class Generator(nn.Module):
@@ -12,54 +15,50 @@ class Generator(nn.Module):
         super(Generator, self).__init__()
         self.seqseq_model = Model(model_file_path=None)
 
-    # def init_hidden(self, batch_size=1):
-    #     h = autograd.Variable(torch.zeros(1, batch_size, self.hidden_dim))
+    def init_hidden(self, batch_size=1):
+        # h = autograd.Variable(torch.zeros(1, batch_size, self.hidden_dim))
+        h = nn.Linear(config.hidden_dim * 2, config.hidden_dim * 2, bias=False) # ToDo: Do we want to initialize with the hidden state from random data?
 
-    #     if self.gpu:
-    #         return h.cuda()
-    #     else:
-    #         return h
+        if config.use_gpu:
+            return h.cuda()
+        else:
+            return h
 
-    def forward(self, inp, hidden):
-        """
-        Embeds input and applies GRU one token at a time (seq_len = 1)
-        """
-        # input dim                                             # batch_size
-        emb = self.embeddings(inp)                              # batch_size x embedding_dim
-        emb = emb.view(1, -1, self.embedding_dim)               # 1 x batch_size x embedding_dim
-        out, hidden = self.gmodelmodelru(emb, hidden)                     # 1 x batch_size x hidden_dim (out)
-        out = self.gru2out(out.view(-1, self.hidden_dim))       # batch_size x vocab_size
-        out = F.log_softmax(out, dim=1)
-        return out, hidden
-
-    def sample(self, inp):
-        """
-        inp is num_samples x seq_len
-        
+    def sample(self, num_samples, vocab):
+        """ 
         Samples the network and returns num_samples samples of length max_seq_len.
 
         Outputs: samples, hidden
             - samples: num_samples x max_seq_length (a sampled sequence in each row)
         """
-        num_samples, _ = inp.size()
-        samples = torch.zeros(num_samples, self.max_seq_len).type(torch.LongTensor)
 
-        h = self.init_hidden(num_samples)
+        batch = random_from_data(num_samples, vocab)
 
-        inp = inp.type(torch.LongTensor)
+        enc_batch, enc_padding_mask, enc_lens, enc_batch_extend_vocab, extra_zeros, c_t_1, coverage = \
+            get_input_from_batch(batch, config.use_gpu)
+        dec_batch, dec_padding_mask, max_dec_len, dec_lens_var, target_batch = \
+            get_output_from_batch(batch, config.use_gpu)
 
-        if self.gpu:
-            samples = samples.cuda()
-            inp = inp.cuda()
+        print(enc_batch)
+        print(dec_batch)
 
-        inp = inp.permute(1, 0) # seq_len x batch_size
+        # samples = torch.zeros(num_samples, config.max_enc_steps).type(torch.LongTensor) # ToDo: Verify max seq length
 
-        for i in range(self.max_seq_len):
-            out, h = self.forward(inp[i], h)            # out: num_samples x vocab_size
-            out = torch.multinomial(torch.exp(out), 1)  # num_samples x 1 (sampling from each row)
-            samples[:, i] = out.view(-1).data
+        # h = self.init_hidden(num_samples)
+        # inp = torch.LongTensor([start_letter]*num_samples)
 
-        return samples
+        # if config.use_gpu:
+        #     samples = samples.cuda()
+        #     inp = inp.cuda()
+
+        # for i in range(config.max_enc_steps):
+        #     out, h = self.seqseq_model(inp, h)               # out: num_samples x vocab_size
+        #     out = torch.multinomial(torch.exp(out), 1)  # num_samples x 1 (sampling from each row)
+        #     samples[:, i] = out.view(-1).data
+
+        #     inp = out.view(-1)
+
+        # return samples
 
     def batchPGLoss(self, inp, target, reward):
         """

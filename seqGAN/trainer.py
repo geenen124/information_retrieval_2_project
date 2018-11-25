@@ -44,6 +44,7 @@ class TrainSeq2Seq(object):
         torch.save(state, model_save_path)
 
     def setup(self, container, model_file_path):
+        self.generator = container
         self.model = container.seqseq_model
 
         params = list(self.model.encoder.parameters()) + list(self.model.decoder.parameters()) + \
@@ -132,5 +133,24 @@ class TrainSeq2Seq(object):
                 self.save_model(running_avg_loss, iter)
 
 
-    def train_pg(self):
-        pass
+    def train_pg(self, num_batches):
+        """
+        The generator is trained using policy gradients, using the reward from the discriminator.
+        Training is done for num_batches batches.
+        """
+        n_samples = 2#config.batch_size*2    # 64 works best
+
+        for _ in range(num_batches):
+            s = self.generator.sample(n_samples, self.vocab)
+            
+            # inp, target = helpers.prepare_generator_batch(input_samples,
+                                                          # s, 
+                                                          # start_letter, 
+                                                          # pad_id,
+                                                          # gpu=config.use_gpu)
+            # rewards = dis.batchClassify(target)
+
+            # gen_opt.zero_grad()
+            # pg_loss = gen.batchPGLoss(inp, target, rewards)
+            # pg_loss.backward()
+            # gen_opt.step()
