@@ -75,7 +75,7 @@ class Generator(nn.Module):
 class BeamSearch(object):
     def __init__(self, vocab, model):
         self.vocab = vocab
-        self.batcher = Batcher(config.decode_data_path, self.vocab, mode='decode',
+        self.batcher = Batcher(config.decode_data_path, self.vocab, mode='sample',
                                batch_size=config.batch_size, single_pass=True) 
         time.sleep(15)
 

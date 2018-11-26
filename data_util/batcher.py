@@ -202,6 +202,16 @@ class Batcher(object):
         ex = self._example_queue.get()
         b = [ex for _ in range(self.batch_size)]
         self._batch_queue.put(Batch(b, self._vocab, self.batch_size))
+      if self.mode == 'sample':
+        # Grab all examples
+        all_examples = []
+        while not self._example_queue.empty():
+          all_examples.append(self._example_queue.get())
+        shuffle(all_examples)
+        # beam search decode mode single example repeated in the batch
+        ex = all_examples[0]
+        b = [ex for _ in range(self.batch_size)]
+        self._batch_queue.put(Batch(b, self._vocab, self.batch_size))
       else:
         # Get bucketing_cache_size-many batches of Examples into a list, then sort
         inputs = []
