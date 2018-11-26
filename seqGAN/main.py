@@ -7,14 +7,12 @@ import torch.optim as optim
 import torch.nn as nn
 
 import generator
-import discriminator
-import helpers
 
+from data_util import config
 from trainer import TrainSeq2Seq
 
-# BATCH_SIZE = 16#32
 MLE_TRAIN_EPOCHS = 0#100
-ADV_TRAIN_EPOCHS = 1#50
+ADV_TRAIN_EPOCHS = 2#50
 
 
 # MAIN

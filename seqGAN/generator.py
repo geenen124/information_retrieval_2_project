@@ -10,6 +10,7 @@ from data_util import config, data
 from data_util.batcher import Batcher
 from training_ptr_gen.train_util import get_input_from_batch, get_output_from_batch
 
+import numpy as np
 
 class Generator(nn.Module):
 
@@ -20,7 +21,6 @@ class Generator(nn.Module):
     def sample(self, n_samples, vocab):
         sampling_decoder = BeamSearch(vocab, self.seqseq_model)
         return sampling_decoder.sample(n_samples)
-
 
 
 class BeamSearch(object):
@@ -41,14 +41,15 @@ class BeamSearch(object):
 
 
     def sample(self, num_samples):
-        inputs = []
-        targets = []
-
         batch = self.batcher.next_batch()
+
+        _, seq_len = batch.target_batch.shape
+
+        batches = []
+        predictions = np.zeros((num_samples, seq_len), dtype=np.int32)
         
-        for _ in range(num_samples):
-            # Grab the first example since all are repeated
-            inputs.append(batch.enc_batch[0])
+        for i in range(num_samples):
+            batches.append(batch)
 
             # Run beam search to get best Hypothesis
             best_summary = self.beam_search(batch)
@@ -56,7 +57,7 @@ class BeamSearch(object):
             # Extract the output ids from the hypothesis
             output_ids = [int(t) for t in best_summary.tokens[1:]]
 
-            targets.append(output_ids)
+            predictions[i] = output_ids
 
             batch = self.batcher.next_batch()
 
@@ -65,7 +66,7 @@ class BeamSearch(object):
         self.decoder = self.decoder.train()
         self.reduce_state = self.reduce_state.train()
 
-        return inputs, targets
+        return batches, predictions
 
 
     def beam_search(self, batch):

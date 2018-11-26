@@ -9,6 +9,8 @@ from torch.nn.utils import clip_grad_norm_
 
 from torch.optim import Adagrad, Adam
 
+import numpy as np
+
 from data_util.batcher import Batcher
 from data_util.data import Vocab
 from data_util.utils import calc_running_avg_loss
@@ -138,16 +140,48 @@ class TrainSeq2Seq(object):
         The generator is trained using policy gradients, using the reward from the discriminator.
         Training is done for num_batches batches.
         """
-        n_samples = 4#config.batch_size*2    # 64 works best
+        n_samples = config.batch_size*2    # 64 works best
 
         for _ in range(num_batches):
-            # inp, target =
-            self.generator.sample(n_samples, self.vocab)
-
+            batches, predictions = self.generator.sample(n_samples, self.vocab)
             
-            # rewards = dis.batchClassify(target)
+            rewards = torch.zeros(n_samples) # ToDo: Use rouge scores for rewards
 
-            # gen_opt.zero_grad()
-            # pg_loss = gen.batchPGLoss(inp, target, rewards)
-            # pg_loss.backward()
-            # gen_opt.step()
+            self.optimizer.zero_grad()
+            pg_loss = self.calculate_pg_loss(batches, predictions, rewards)
+            pg_loss.backward()            
+            self.optimizer.step()
+
+            print('PG loss:', pg_loss.item())
+
+    def calculate_pg_loss(self, batches, predictions, rewards):
+        batch_size, seq_len = predictions.shape
+
+        targets = np.zeros((batch_size, seq_len), dtype=np.int32)
+        dec_lens = np.zeros((batch_size), dtype=np.int32)
+        dec_padding_mask = np.zeros((batch_size, seq_len), dtype=np.float32)
+
+        # First process the batch objects
+        for i, batch in enumerate(batches):
+            # Grab only the first one since these are repeated for decoding
+            targets[i] = batch.target_batch[0]
+            dec_lens[i] = batch.dec_lens[0]
+            dec_padding_mask[i] = batch.dec_padding_mask[0]
+
+        step_losses = []
+
+        for i in range(seq_len):
+            step_loss = 0
+            for j in range(batch_size):
+                step_loss += -predictions[j][targets[j][i]]*rewards[j] # log(P(y_t|Y_1:Y_{t-1})) * Q
+
+            step_mask = dec_padding_mask[:, i]
+            step_loss = step_loss * step_mask
+            step_losses.append(step_loss)
+
+
+        sum_losses = torch.sum(torch.stack(step_losses, 1), 1)
+        batch_avg_loss = sum_losses/dec_lens
+        loss = torch.mean(batch_avg_loss)
+
+        return loss
