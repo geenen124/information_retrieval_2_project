@@ -90,11 +90,11 @@ def text_generator(example_generator):
     else:
       yield (article_text, abstract_text)
 
-def example_generator(data_path, single_pass):
+def example_generator(data_path, single_pass, should_shuffle):
   while True:
     filelist = glob.glob(data_path) # get the list of datafiles
     assert filelist, ('Error: Empty filelist at %s' % data_path) # check filelist isn't empty
-    if single_pass:
+    if single_pass and not should_shuffle:
       filelist = sorted(filelist)
     else:
       random.shuffle(filelist)

@@ -177,7 +177,7 @@ class Batcher(object):
     return batch
 
   def fill_example_queue(self):
-    input_gen = data.text_generator(data.example_generator(self._data_path, self._single_pass))
+    input_gen = data.text_generator(data.example_generator(self._data_path, self._single_pass, self.mode == 'sample'))
 
     while True:
       try:
@@ -197,19 +197,9 @@ class Batcher(object):
 
   def fill_batch_queue(self):
     while True:
-      if self.mode == 'decode':
+      if self.mode == 'decode' or self.mode == 'sample':
         # beam search decode mode single example repeated in the batch
         ex = self._example_queue.get()
-        b = [ex for _ in range(self.batch_size)]
-        self._batch_queue.put(Batch(b, self._vocab, self.batch_size))
-      if self.mode == 'sample':
-        # Grab all examples
-        all_examples = []
-        while not self._example_queue.empty():
-          all_examples.append(self._example_queue.get())
-        shuffle(all_examples)
-        # beam search decode mode single example repeated in the batch
-        ex = all_examples[0]
         b = [ex for _ in range(self.batch_size)]
         self._batch_queue.put(Batch(b, self._vocab, self.batch_size))
       else:

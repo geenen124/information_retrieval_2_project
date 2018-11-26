@@ -138,16 +138,13 @@ class TrainSeq2Seq(object):
         The generator is trained using policy gradients, using the reward from the discriminator.
         Training is done for num_batches batches.
         """
-        n_samples = 2#config.batch_size*2    # 64 works best
+        n_samples = 4#config.batch_size*2    # 64 works best
 
         for _ in range(num_batches):
-            s = self.generator.sample(n_samples, self.vocab)
+            # inp, target =
+            self.generator.sample(n_samples, self.vocab)
+
             
-            # inp, target = helpers.prepare_generator_batch(input_samples,
-                                                          # s, 
-                                                          # start_letter, 
-                                                          # pad_id,
-                                                          # gpu=config.use_gpu)
             # rewards = dis.batchClassify(target)
 
             # gen_opt.zero_grad()

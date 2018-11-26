@@ -2,10 +2,13 @@ import torch
 import torch.autograd as autograd
 import torch.nn as nn
 import torch.nn.functional as F
+from torch.autograd import Variable
+import time
 
 from training_ptr_gen.model import Model
-from data_util import config
-from helpers import random_batch
+from data_util import config, data
+from data_util.batcher import Batcher
+from training_ptr_gen.train_util import get_input_from_batch, get_output_from_batch
 
 
 class Generator(nn.Module):
@@ -14,32 +17,17 @@ class Generator(nn.Module):
         super(Generator, self).__init__()
         self.seqseq_model = Model(model_file_path=None)
 
-    def x(n_samples, vocab):
+    def sample(self, n_samples, vocab):
+        sampling_decoder = BeamSearch(vocab, self.seqseq_model)
+        inputs, targets = sampling_decoder.sample(n_samples)
+        # print('These are the inputs:')
+        # print(inputs)
+        # print('These are the outputs:')
+        # print(targets)
 
-        # Grab ramdom subset of trainng data
-        batch = random_batch(n_samples, vocab)
+        # print(vocab.id2word(22731))
 
-        #rewards = helpers.get_rewards(batch) # mentira
-
-        # Encoder pass
-        enc_batch, enc_padding_mask, enc_lens, enc_batch_extend_vocab, extra_zeros, c_t_1, coverage = \
-            get_input_from_batch(batch, config.use_gpu)
-
-        encoder_outputs, encoder_feature, encoder_hidden = self.model.encoder(enc_batch, enc_lens)
-        s_t_1 = self.model.reduce_state(encoder_hidden)
-
-        # Decoder pass
-        # Run beam search to get best Hypothesis
-        best_summary = self.beam_search(batch)
-
-
-
-
-
-        dec_batch, dec_padding_mask, max_dec_len, dec_lens_var, target_batch = \
-            get_output_from_batch(batch, config.use_gpu) # I think i only want the target_batch
-
-        return
+        return inputs, targets
 
 
     def batchPGLoss(self, inp, target, reward):
@@ -76,48 +64,51 @@ class BeamSearch(object):
     def __init__(self, vocab, model):
         self.vocab = vocab
         self.batcher = Batcher(config.decode_data_path, self.vocab, mode='sample',
-                               batch_size=config.batch_size, single_pass=True) 
+                               batch_size=config.beam_size, single_pass=True) 
         time.sleep(15)
 
         self.model = model
-        # Todo: remove this todo when we changed back the mode to training.
-        self.encoder = encoder.eval()
-        self.decoder = decoder.eval()
-        self.reduce_state = reduce_state.eval()
+        # Change to eval mode
+        self.encoder = self.model.encoder.eval()
+        self.decoder = self.model.decoder.eval()
+        self.reduce_state = self.model.reduce_state.eval()
 
     def sort_beams(self, beams):
         return sorted(beams, key=lambda h: h.avg_log_prob, reverse=True)
 
 
-    def decode(self, num_samples):
+    def sample(self, num_samples):
+        inputs = []
+        targets = []
+
         batch = self.batcher.next_batch()
         
-        for _ in num_samples:
+        for _ in range(num_samples):
+            # Grab the first example since all are repeated
+            inputs.append(batch.enc_batch[0])
+
             # Run beam search to get best Hypothesis
             best_summary = self.beam_search(batch)
 
-            # Extract the output ids from the hypothesis and convert back to words
+            # Extract the output ids from the hypothesis
             output_ids = [int(t) for t in best_summary.tokens[1:]]
-            decoded_words = data.outputids2words(output_ids, self.vocab, None)
 
-            # Remove the [STOP] token from decoded_words, if necessary
-            try:
-                fst_stop_idx = decoded_words.index(data.STOP_DECODING)
-                decoded_words = decoded_words[:fst_stop_idx]
-            except ValueError:
-                decoded_words = decoded_words
-
-            original_abstract_sents = batch.original_abstracts_sents[0]
+            targets.append(output_ids)
 
             batch = self.batcher.next_batch()
 
-        print("Finished sampling.")
+        # Change back to training mode
+        self.encoder = self.encoder.train()
+        self.decoder = self.decoder.train()
+        self.reduce_state = self.reduce_state.train()
+
+        return inputs, targets
 
 
     def beam_search(self, batch):
         #batch should have only one example
         enc_batch, enc_padding_mask, enc_lens, enc_batch_extend_vocab, extra_zeros, c_t_0, coverage_t_0 = \
-            get_input_from_batch(batch, use_cuda)
+            get_input_from_batch(batch, config.use_gpu)
 
         encoder_outputs, encoder_feature, encoder_hidden = self.model.encoder(enc_batch, enc_lens)
         s_t_0 = self.model.reduce_state(encoder_hidden)
@@ -140,7 +131,7 @@ class BeamSearch(object):
             latest_tokens = [t if t < self.vocab.size() else self.vocab.word2id(data.UNKNOWN_TOKEN) \
                              for t in latest_tokens]
             y_t_1 = Variable(torch.LongTensor(latest_tokens))
-            if use_cuda:
+            if config.use_gpu:
                 y_t_1 = y_t_1.cuda()
             all_state_h =[]
             all_state_c = []
@@ -208,3 +199,26 @@ class BeamSearch(object):
         beams_sorted = self.sort_beams(results)
 
         return beams_sorted[0]
+
+class Beam(object):
+  def __init__(self, tokens, log_probs, state, context, coverage):
+    self.tokens = tokens
+    self.log_probs = log_probs
+    self.state = state
+    self.context = context
+    self.coverage = coverage
+
+  def extend(self, token, log_prob, state, context, coverage):
+    return Beam(tokens = self.tokens + [token],
+                      log_probs = self.log_probs + [log_prob],
+                      state = state,
+                      context = context,
+                      coverage = coverage)
+
+  @property
+  def latest_token(self):
+    return self.tokens[-1]
+
+  @property
+  def avg_log_prob(self):
+    return sum(self.log_probs) / len(self.tokens)
