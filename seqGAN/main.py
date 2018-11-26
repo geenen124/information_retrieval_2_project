@@ -10,18 +10,12 @@ import generator
 import discriminator
 import helpers
 
-# from data_util.data import Vocab, example_generator, text_generator, abstract2sents, START_DECODING, STOP_DECODING, PAD_TOKEN
 from trainer import TrainSeq2Seq
-from data_util import config
 
-#MAX_SEQ_LEN = 20 #TODO: check this
 # BATCH_SIZE = 16#32
 MLE_TRAIN_EPOCHS = 0#100
 ADV_TRAIN_EPOCHS = 1#50
 
-# DIS_EMBEDDING_DIM = 64
-# DIS_HIDDEN_DIM = 64
-    
 
 # MAIN
 if __name__ == '__main__':
@@ -51,9 +45,4 @@ if __name__ == '__main__':
         # TRAIN GENERATOR
         print('\nAdversarial Training Generator : ', end='')
         sys.stdout.flush()
-        # train_generator_PG(gen, 1, articles, abstracts, start_letter, pad_id)
         generator_trainer.train_pg(num_batches=1)
-
-        # TRAIN DISCRIMINATOR
-        # print('\nAdversarial Training Discriminator : ')
-        # train_discriminator(dis, dis_optimizer, articles, abstracts, gen, 5, 3)
