@@ -19,44 +19,7 @@ class Generator(nn.Module):
 
     def sample(self, n_samples, vocab):
         sampling_decoder = BeamSearch(vocab, self.seqseq_model)
-        inputs, targets = sampling_decoder.sample(n_samples)
-        # print('These are the inputs:')
-        # print(inputs)
-        # print('These are the outputs:')
-        # print(targets)
-
-        # print(vocab.id2word(22731))
-
-        return inputs, targets
-
-
-    def batchPGLoss(self, inp, target, reward):
-        """
-        Returns a pseudo-loss that gives corresponding policy gradients (on calling .backward()).
-        Inspired by the example in http://karpathy.github.io/2016/05/31/rl/
-
-        Inputs: inp, target
-            - inp: batch_size x seq_len
-            - target: batch_size x seq_len
-            - reward: batch_size (discriminator reward for each sentence, applied to each token of the corresponding
-                      sentence)
-
-            inp should be target with <s> (start letter) prepended
-        """
-
-        batch_size, seq_len = inp.size()
-        inp = inp.permute(1, 0)          # seq_len x batch_size
-        target = target.permute(1, 0)    # seq_len x batch_size
-        h = self.init_hidden(batch_size)
-
-        loss = 0
-        for i in range(seq_len):
-            out, h = self.forward(inp[i], h)
-            # TODO: should h be detached from graph (.detach())?
-            for j in range(batch_size):
-                loss += -out[j][target.data[i][j]]*reward[j]     # log(P(y_t|Y_1:Y_{t-1})) * Q
-
-        return loss/batch_size
+        return sampling_decoder.sample(n_samples)
 
 
 
