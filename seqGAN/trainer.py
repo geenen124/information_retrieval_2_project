@@ -142,10 +142,12 @@ class TrainSeq2Seq(object):
         """
 
         for _ in range(n_iters):
-
+            # batches has the input sequence info (sequence mask, lengths)
+            # log_probs of the predicted sequence
             batches, log_probs = fw_log_probs(self.model, self.vocab, config.batch_size)
             
-            rewards = torch.zeros(config.batch_size) # ToDo: Use rouge scores for rewards
+            # ToDo: Use rouge scores for rewards
+            rewards = torch.zeros(config.batch_size) 
 
             self.optimizer.zero_grad()
             pg_loss = self.calculate_pg_loss(batches, log_probs, rewards)
@@ -158,7 +160,7 @@ class TrainSeq2Seq(object):
     def calculate_pg_loss(self, batches, log_probs, rewards):
         batch_size, seq_len = log_probs.shape
 
-        # targets are the sequence of ids of the gold thing
+        # targets are the sequence of ids of the gold sequence. ToDo: convert to log probs?
         targets = torch.zeros((batch_size, seq_len), dtype=torch.int32)
         dec_lens = torch.zeros((batch_size), dtype=torch.float32)
         dec_padding_mask = torch.zeros((batch_size, seq_len), dtype=torch.float32)
@@ -175,7 +177,7 @@ class TrainSeq2Seq(object):
         for i in range(seq_len):
             step_loss = 0
             for j in range(batch_size):
-                step_loss += log_probs[j][i] #This has to be log(P(y_t|Y_1:Y_{t-1})) * Q
+                step_loss += log_probs[j][i] #ToDo: This has to be log(P(y_t|Y_1:Y_{t-1})) * Q
 
             step_mask = dec_padding_mask[:, i]
             step_loss = step_loss * step_mask
