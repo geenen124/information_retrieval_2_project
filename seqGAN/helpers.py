@@ -12,21 +12,15 @@ from training_ptr_gen.train_util import get_input_from_batch, get_output_from_ba
 
 import numpy as np
 
-class Generator(nn.Module):
-
-    def __init__(self):
-        super(Generator, self).__init__()
-        self.seqseq_model = Model(model_file_path=None)
-
-    def sample(self, n_samples, vocab):
-        sampling_decoder = BeamSearch(vocab, self.seqseq_model)
-        return sampling_decoder.sample(n_samples)
+def fw_log_probs(model, vocab, iters):
+    beam_search_processor = BeamSearch(vocab, model)
+    return beam_search_processor.run(iters)
 
 
 class BeamSearch(object):
     def __init__(self, vocab, model):
         self.vocab = vocab
-        self.batcher = Batcher(config.decode_data_path, self.vocab, mode='sample',
+        self.batcher = Batcher(config.train_data_path, self.vocab, mode='decode',
                                batch_size=config.beam_size, single_pass=True) 
         time.sleep(15)
 
@@ -40,24 +34,26 @@ class BeamSearch(object):
         return sorted(beams, key=lambda h: h.avg_log_prob, reverse=True)
 
 
-    def sample(self, num_samples):
+    def run(self, iters):
         batch = self.batcher.next_batch()
 
         _, seq_len = batch.target_batch.shape
 
         batches = []
-        predictions = np.zeros((num_samples, seq_len), dtype=np.int32)
+        log_probs = torch.zeros((iters, seq_len), dtype=torch.float32)
         
-        for i in range(num_samples):
+        for i in range(iters):
             batches.append(batch)
 
             # Run beam search to get best Hypothesis
             best_summary = self.beam_search(batch)
+            print(best_summary.log_probs.grad_fn)
+            assert False
 
             # Extract the output ids from the hypothesis
-            output_ids = [int(t) for t in best_summary.tokens[1:]]
+            probs = [p for p in best_summary.log_probs[1:]]
 
-            predictions[i] = output_ids
+            log_probs[i] = torch.FloatTensor(probs)
 
             batch = self.batcher.next_batch()
 
@@ -66,7 +62,7 @@ class BeamSearch(object):
         self.decoder = self.decoder.train()
         self.reduce_state = self.reduce_state.train()
 
-        return batches, predictions
+        return batches, log_probs
 
 
     def beam_search(self, batch):
@@ -83,7 +79,7 @@ class BeamSearch(object):
 
         #decoder batch preparation, it has beam_size example initially everything is repeated
         beams = [Beam(tokens=[self.vocab.word2id(data.START_DECODING)],
-                      log_probs=[0.0],
+                      log_probs=torch.zeros(config.max_dec_steps + 1, dtype=torch.float32),
                       state=(dec_h[0], dec_c[0]),
                       context = c_t_0[0],
                       coverage=(coverage_t_0[0] if config.is_coverage else None))
@@ -139,7 +135,7 @@ class BeamSearch(object):
 
                 for j in range(config.beam_size * 2):  # for each of the top 2*beam_size hyps:
                     new_beam = h.extend(token=topk_ids[i, j].item(),
-                                   log_prob=topk_log_probs[i, j].item(),
+                                   log_prob=topk_log_probs[i, j],
                                    state=state_i,
                                    context=context_i,
                                    coverage=coverage_i)
@@ -173,8 +169,10 @@ class Beam(object):
     self.coverage = coverage
 
   def extend(self, token, log_prob, state, context, coverage):
+    indx = len(self.tokens)
+    self.log_probs[indx] = log_prob + indx
     return Beam(tokens = self.tokens + [token],
-                      log_probs = self.log_probs + [log_prob],
+                      log_probs = self.log_probs,
                       state = state,
                       context = context,
                       coverage = coverage)

@@ -8,6 +8,7 @@ import torch
 from torch.nn.utils import clip_grad_norm_
 
 from torch.optim import Adagrad, Adam
+from torch.autograd import Variable
 
 import numpy as np
 
@@ -16,6 +17,7 @@ from data_util.data import Vocab
 from data_util.utils import calc_running_avg_loss
 from data_util import config
 from training_ptr_gen.train_util import get_input_from_batch, get_output_from_batch
+from helpers import fw_log_probs
 
 
 class TrainSeq2Seq(object):
@@ -45,9 +47,8 @@ class TrainSeq2Seq(object):
         model_save_path = os.path.join(self.model_dir, 'model_%d_%d' % (iter, int(time.time())))
         torch.save(state, model_save_path)
 
-    def setup(self, container, model_file_path):
-        self.generator = container
-        self.model = container.seqseq_model
+    def setup(self, seqseq_model, model_file_path):
+        self.model = seqseq_model
 
         params = list(self.model.encoder.parameters()) + list(self.model.decoder.parameters()) + \
                  list(self.model.reduce_state.parameters())
@@ -135,45 +136,47 @@ class TrainSeq2Seq(object):
                 self.save_model(running_avg_loss, iter)
 
 
-    def train_pg(self, num_batches):
+    def train_pg(self, n_iters):
         """
         The generator is trained using policy gradients, using the reward from the discriminator.
         Training is done for num_batches batches.
         """
-        n_samples = config.batch_size*2    # 64 works best
 
-        for _ in range(num_batches):
-            batches, predictions = self.generator.sample(n_samples, self.vocab)
+        for _ in range(n_iters):
+
+            batches, log_probs = fw_log_probs(self.model, self.vocab, config.batch_size)
             
-            rewards = torch.zeros(n_samples) # ToDo: Use rouge scores for rewards
+            rewards = torch.zeros(config.batch_size) # ToDo: Use rouge scores for rewards
 
             self.optimizer.zero_grad()
-            pg_loss = self.calculate_pg_loss(batches, predictions, rewards)
+            pg_loss = self.calculate_pg_loss(batches, log_probs, rewards)
             pg_loss.backward()            
             self.optimizer.step()
 
             print('PG loss:', pg_loss.item())
 
-    def calculate_pg_loss(self, batches, predictions, rewards):
-        batch_size, seq_len = predictions.shape
 
-        targets = np.zeros((batch_size, seq_len), dtype=np.int32)
-        dec_lens = np.zeros((batch_size), dtype=np.int32)
-        dec_padding_mask = np.zeros((batch_size, seq_len), dtype=np.float32)
+    def calculate_pg_loss(self, batches, log_probs, rewards):
+        batch_size, seq_len = log_probs.shape
+
+        # targets are the sequence of ids of the gold thing
+        targets = torch.zeros((batch_size, seq_len), dtype=torch.int32)
+        dec_lens = torch.zeros((batch_size), dtype=torch.float32)
+        dec_padding_mask = torch.zeros((batch_size, seq_len), dtype=torch.float32)
 
         # First process the batch objects
         for i, batch in enumerate(batches):
             # Grab only the first one since these are repeated for decoding
-            targets[i] = batch.target_batch[0]
-            dec_lens[i] = batch.dec_lens[0]
-            dec_padding_mask[i] = batch.dec_padding_mask[0]
+            targets[i] = torch.from_numpy(batch.target_batch)[0]
+            dec_lens[i] = torch.from_numpy(batch.dec_lens)[0]
+            dec_padding_mask[i] = torch.from_numpy(batch.dec_padding_mask)[0]
 
         step_losses = []
 
         for i in range(seq_len):
             step_loss = 0
             for j in range(batch_size):
-                step_loss += -predictions[j][targets[j][i]]*rewards[j] # log(P(y_t|Y_1:Y_{t-1})) * Q
+                step_loss += log_probs[j][i] #This has to be log(P(y_t|Y_1:Y_{t-1})) * Q
 
             step_mask = dec_padding_mask[:, i]
             step_loss = step_loss * step_mask

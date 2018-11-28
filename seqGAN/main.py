@@ -6,19 +6,18 @@ import torch
 import torch.optim as optim
 import torch.nn as nn
 
-import generator
-
+from training_ptr_gen.model import Model
 from data_util import config
 from trainer import TrainSeq2Seq
 
 MLE_TRAIN_EPOCHS = 0#100
-ADV_TRAIN_EPOCHS = 2#50
+PG_TRAIN_EPOCHS = 2#50
 
 
 # MAIN
 if __name__ == '__main__':
     # Model
-    gen = generator.Generator()
+    model = Model()
 
     if config.use_gpu:
         gen = gen.cuda()
@@ -27,20 +26,21 @@ if __name__ == '__main__':
     seq2seq_checkpoint_file = None
 
     # Load data
-    generator_trainer = TrainSeq2Seq()
+    trainer = TrainSeq2Seq()
     # Prepare for training (e.g. optimizer)
-    iter, running_avg_loss = generator_trainer.setup(gen, model_file_path=seq2seq_checkpoint_file)
+    iter, running_avg_loss = trainer.setup(model, model_file_path=seq2seq_checkpoint_file)
 
     # GENERATOR MLE TRAINING - Pretrain
     print('Starting Generator MLE Training...')
-    generator_trainer.train_nll(MLE_TRAIN_EPOCHS, iter, running_avg_loss)
+    trainer.train_nll(MLE_TRAIN_EPOCHS, iter, running_avg_loss)
 
     # ADVERSARIAL TRAINING
-    print('\nStarting Adversarial Training...')
+    print('\nStarting PG Training...')
+    trainer.train_pg(PG_TRAIN_EPOCHS)
 
-    for epoch in range(ADV_TRAIN_EPOCHS):
-        print('\n--------\nEPOCH %d\n--------' % (epoch+1))
-        # TRAIN GENERATOR
-        print('\nAdversarial Training Generator : ', end='')
-        sys.stdout.flush()
-        generator_trainer.train_pg(num_batches=1)
+    # for epoch in range(PG_TRAIN_EPOCHS):
+    #     print('\n--------\nEPOCH %d\n--------' % (epoch+1))
+    #     # TRAIN GENERATOR
+    #     print('\nAdversarial Training Generator : ', end='')
+    #     sys.stdout.flush()
+    #     trainer.train_pg(num_batches=1)
