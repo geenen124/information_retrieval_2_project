@@ -48,10 +48,7 @@ class BeamSearch(object):
             # Run beam search to get best Hypothesis
             best_summary = self.beam_search(batch)
 
-            # Extract the output ids from the hypothesis
-            # probs = [p for p in best_summary.log_probs[1:]]
-
-            log_probs[i] = best_summary.log_probs[1:]#torch.FloatTensor(probs)
+            log_probs[i] = best_summary.log_probs[1:]
 
             batch = self.batcher.next_batch()
 
