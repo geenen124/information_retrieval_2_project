@@ -153,10 +153,8 @@ class TrainSeq2Seq(object):
             batch = pg_batcher.next_batch()
             loss = self.train_one_batch_pg(batch)
 
-            print('PG loss:', loss)
-
             running_avg_loss = calc_running_avg_loss(loss, running_avg_loss, iter)
-            print("Iteration:", iter, "  loss:", loss, "  Running avg loss:", running_avg_loss)
+            print("Iteration:", iter, "  PG loss:", loss, "  Running avg loss:", running_avg_loss)
             iter += 1
 
             print_interval = 1000
