@@ -11,7 +11,7 @@ from data_util import config
 from trainer import TrainSeq2Seq
 
 MLE_TRAIN_EPOCHS = 0#100
-PG_TRAIN_EPOCHS = 2#50
+PG_TRAIN_EPOCHS = 50
 
 
 # MAIN
@@ -37,10 +37,3 @@ if __name__ == '__main__':
     # ADVERSARIAL TRAINING
     print('\nStarting PG Training...')
     trainer.train_pg(PG_TRAIN_EPOCHS)
-
-    # for epoch in range(PG_TRAIN_EPOCHS):
-    #     print('\n--------\nEPOCH %d\n--------' % (epoch+1))
-    #     # TRAIN GENERATOR
-    #     print('\nAdversarial Training Generator : ', end='')
-    #     sys.stdout.flush()
-    #     trainer.train_pg(num_batches=1)
