@@ -13,15 +13,17 @@ from training_ptr_gen.train_util import get_input_from_batch, get_output_from_ba
 import numpy as np
 
 def fw_log_probs(model, vocab, iters):
-    beam_search_processor = BeamSearch(vocab, model)
-    return beam_search_processor.run(iters)
+    fw_processor = X(vocab, model)
+    return fw_processor.run(iters)
 
 
-class BeamSearch(object):
+class X(object):
     def __init__(self, vocab, model):
         self.vocab = vocab
-        self.batcher = Batcher(config.train_data_path, self.vocab, mode='decode',
-                               batch_size=config.beam_size, single_pass=True) 
+        # self.batcher = Batcher(config.train_data_path, self.vocab, mode='decode',
+                               # batch_size=config.beam_size, single_pass=True) 
+        self.batcher = Batcher(config.train_data_path, self.vocab, mode='train',
+                               batch_size=config.batch_size, single_pass=False)
         time.sleep(15)
 
         self.model = model
@@ -30,8 +32,8 @@ class BeamSearch(object):
         self.decoder = self.model.decoder.eval()
         self.reduce_state = self.model.reduce_state.eval()
 
-    def sort_beams(self, beams):
-        return sorted(beams, key=lambda h: h.avg_log_prob, reverse=True)
+    # def sort_beams(self, beams):
+    #     return sorted(beams, key=lambda h: h.avg_log_prob, reverse=True)
 
 
     def run(self, iters):
@@ -155,7 +157,7 @@ class BeamSearch(object):
 
         return beams_sorted[0]
 
-class Beam(object):
+class Res(object):
   def __init__(self, tokens, log_probs, state, context, coverage):
     self.tokens = tokens
     self.log_probs = log_probs
@@ -166,7 +168,7 @@ class Beam(object):
   def extend(self, token, log_prob, state, context, coverage):
     indx = len(self.tokens)
     self.log_probs[indx] = log_prob + indx
-    return Beam(tokens = self.tokens + [token],
+    return Res(tokens = self.tokens + [token],
                       log_probs = self.log_probs,
                       state = state,
                       context = context,
