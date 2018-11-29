@@ -16,7 +16,6 @@ from data_util.data import Vocab
 from data_util.utils import calc_running_avg_loss
 from data_util import config, data
 from training_ptr_gen.train_util import get_input_from_batch, get_output_from_batch
-# from helpers import fw_log_probs
 
 
 class TrainSeq2Seq(object):
@@ -169,24 +168,6 @@ class TrainSeq2Seq(object):
                 self.save_model(running_avg_loss, iter)
 
 
-
-
-
-            # batches has the input sequence info (sequence mask, lengths)
-            # log_probs of the predicted sequence
-            # batches, log_probs = fw_log_probs(self.model, self.vocab, config.batch_size)
-
-            # # ToDo: Use rouge scores for rewards
-            # rewards = torch.zeros(config.batch_size) 
-
-            # self.optimizer.zero_grad()
-            # pg_loss = self.calculate_pg_loss(batches, log_probs, rewards)
-            # pg_loss.backward()            
-            # self.optimizer.step()
-
-            # print('PG loss:', pg_loss.item())
-
-
     def train_one_batch_pg(self, batch):
         batch_size = batch.batch_size
 
@@ -210,28 +191,11 @@ class TrainSeq2Seq(object):
             y_t_1 = y_t_1.cuda()
 
         for di in range(min(max_dec_len, config.max_dec_steps)):
-            # y_t_1 = dec_batch[:, di]  # Teacher forcing
-            # print(y_t_1)
-            # print(y_t_1.shape)
-            # print(dec_batch)
-            # assert False
-
             final_dist, s_t_1,  c_t_1, attn_dist, p_gen, next_coverage = self.model.decoder(y_t_1, s_t_1,
                                                         encoder_outputs, encoder_feature, enc_padding_mask, c_t_1,
                                                         extra_zeros, enc_batch_extend_vocab,
                                                                            coverage, di)
-            # print(final_dist)
-            # print(final_dist.shape)
-            # # print(final_dist.grad_fn)
-            # res, idx = torch.max(final_dist, 1)
-            # print(res)
-            # print(res.shape)
-            # print(idx)
-            # idx = idx.reshape(batch_size, -1).squeeze()
-            # print(idx)
-            # print(idx.shape)
-            # assert False
-
+            
             target = target_batch[:, di]
             gold_probs = torch.gather(final_dist, 1, target.unsqueeze(1)).squeeze()
             step_loss = gold_probs #ToDo: This has to be log(P(y_t|Y_1:Y_{t-1})) * Q
@@ -259,53 +223,3 @@ class TrainSeq2Seq(object):
         self.optimizer.step()
 
         return loss.item()
-
-
-
-
-
-
-    def calculate_pg_loss(self, batches, log_probs, rewards):
-        batch_size, seq_len = log_probs.shape
-
-        # targets are the sequence of ids of the gold sequence. ToDo: convert to log probs?
-        targets = torch.zeros((batch_size, seq_len), dtype=torch.int32)
-        dec_lens = torch.zeros((batch_size), dtype=torch.float32)
-        dec_padding_mask = torch.zeros((batch_size, seq_len), dtype=torch.float32)
-
-        # First process the batch objects
-        for i, batch in enumerate(batches):
-            # Grab only the first one since these are repeated for decoding
-            targets[i] = torch.from_numpy(batch.target_batch)[0]
-            dec_lens[i] = torch.from_numpy(batch.dec_lens)[0]
-            dec_padding_mask[i] = torch.from_numpy(batch.dec_padding_mask)[0]
-
-        step_losses = []
-
-        for di in range(min(max_dec_len, config.max_dec_steps)):
-            y_t_1 = dec_batch[:, di]  # Teacher forcing
-            final_dist, s_t_1,  c_t_1, attn_dist, p_gen, next_coverage = self.model.decoder(y_t_1, s_t_1,
-                                                        encoder_outputs, encoder_feature, enc_padding_mask, c_t_1,
-                                                        extra_zeros, enc_batch_extend_vocab,
-                                                                           coverage, di)
-            target = target_batch[:, di]
-            gold_probs = torch.gather(final_dist, 1, target.unsqueeze(1)).squeeze()
-            step_loss = -torch.log(gold_probs + config.eps)
-
-
-
-        for i in range(seq_len):
-            step_loss = 0
-            for j in range(batch_size):
-                step_loss += log_probs[j][i] #ToDo: This has to be log(P(y_t|Y_1:Y_{t-1})) * Q
-
-            step_mask = dec_padding_mask[:, i]
-            step_loss = step_loss * step_mask
-            step_losses.append(step_loss)
-
-
-        sum_losses = torch.sum(torch.stack(step_losses, 1), 1)
-        batch_avg_loss = sum_losses/dec_lens
-        loss = torch.mean(batch_avg_loss)
-
-        return loss
