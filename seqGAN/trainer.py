@@ -17,6 +17,10 @@ from data_util.utils import calc_running_avg_loss
 from data_util import config, data
 from training_ptr_gen.train_util import get_input_from_batch, get_output_from_batch
 
+from rouge import Rouge
+
+rouge = Rouge()
+
 
 class TrainSeq2Seq(object):
     def __init__(self):
@@ -221,6 +225,10 @@ class TrainSeq2Seq(object):
         predicted_abstracts = [data.outputids2words(ids, self.vocab, None) for ids in output_ids]
 
 
+        scores = rouge.get_scores(original_abstracts, predicted_abstracts)
+        print(scores)
+
+        assert False
         # ToDo: Calculate rewards using Rouge 
         rewards = torch.zeros(batch_size)
 
