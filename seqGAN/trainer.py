@@ -207,7 +207,7 @@ class TrainSeq2Seq(object):
             _, idx = torch.max(final_dist, 1)
             idx = idx.reshape(batch_size, -1).squeeze()
             y_t_1 = idx
-            print(y_t_1)
+            
             for i, pred in enumerate(y_t_1):
                 if not pred.item() == data.PAD_TOKEN:
                     output_ids[i].append(pred.item())
