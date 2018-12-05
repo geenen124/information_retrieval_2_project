@@ -174,23 +174,20 @@ class TrainSeq2Seq(object):
         dec_batch, dec_padding_mask, max_dec_len, dec_lens_var, target_batch = \
             get_output_from_batch(batch, config.use_gpu)
 
-        print(batch.original_abstracts_sents)
-        print(batch.original_articles)
-        print(batch.original_abstracts)
-        # print()
-
-        assert False
-
         self.optimizer.zero_grad()
 
         encoder_outputs, encoder_feature, encoder_hidden = self.model.encoder(enc_batch, enc_lens)
         s_t_1 = self.model.reduce_state(encoder_hidden)
 
         step_losses = []
+        output_ids = []
         # Begin with START symbol
         y_t_1 = torch.ones(batch_size, dtype=torch.long) * self.vocab.word2id(data.START_DECODING)
         if config.use_gpu:
             y_t_1 = y_t_1.cuda()
+
+        for _ in range(batch_size):
+            output_ids.append([])
 
         for di in range(min(max_dec_len, config.max_dec_steps)):
             final_dist, s_t_1,  c_t_1, attn_dist, p_gen, next_coverage = self.model.decoder(y_t_1, s_t_1,
@@ -210,18 +207,23 @@ class TrainSeq2Seq(object):
             _, idx = torch.max(final_dist, 1)
             idx = idx.reshape(batch_size, -1).squeeze()
             y_t_1 = idx
+            print(y_t_1)
+            for i, pred in enumerate(y_t_1):
+                if not pred.item() == data.PAD_TOKEN:
+                    output_ids[i].append(pred.item())
 
         sum_losses = torch.sum(torch.stack(step_losses, 1), 1)
         batch_avg_loss = sum_losses/dec_lens_var
         loss = torch.mean(batch_avg_loss)
 
+        # This is for rouge
+        original_abstracts = batch.original_abstracts_sents
+        predicted_abstracts = [data.outputids2words(ids, self.vocab, None) for ids in output_ids]
+
+
         # ToDo: Calculate rewards using Rouge 
         rewards = torch.zeros(batch_size)
 
-
-
-        
-        
 
         loss.backward()
 
