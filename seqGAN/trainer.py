@@ -169,13 +169,17 @@ class TrainSeq2Seq(object):
     def train_one_batch_pg(self, batch):
         batch_size = batch.batch_size
 
-        # ToDo: Calculate rewards using Rouge
-        rewards = torch.zeros(batch_size)
-
         enc_batch, enc_padding_mask, enc_lens, enc_batch_extend_vocab, extra_zeros, c_t_1, coverage = \
             get_input_from_batch(batch, config.use_gpu)
         dec_batch, dec_padding_mask, max_dec_len, dec_lens_var, target_batch = \
             get_output_from_batch(batch, config.use_gpu)
+
+        print(batch.original_abstracts_sents)
+        print(batch.original_articles)
+        print(batch.original_abstracts)
+        # print()
+
+        assert False
 
         self.optimizer.zero_grad()
 
@@ -193,11 +197,10 @@ class TrainSeq2Seq(object):
                                                         encoder_outputs, encoder_feature, enc_padding_mask, c_t_1,
                                                         extra_zeros, enc_batch_extend_vocab,
                                                                            coverage, di)
-            
+
             target = target_batch[:, di]
             gold_probs = torch.gather(final_dist, 1, target.unsqueeze(1)).squeeze()
-            step_loss = gold_probs #ToDo: This has to be log(P(y_t|Y_1:Y_{t-1})) * Q
-            #-torch.log(gold_probs + config.eps), final_dist is log probs of prediction, rewards
+            step_loss = -torch.log(gold_probs + config.eps) # NLL
                 
             step_mask = dec_padding_mask[:, di]
             step_loss = step_loss * step_mask
@@ -211,6 +214,14 @@ class TrainSeq2Seq(object):
         sum_losses = torch.sum(torch.stack(step_losses, 1), 1)
         batch_avg_loss = sum_losses/dec_lens_var
         loss = torch.mean(batch_avg_loss)
+
+        # ToDo: Calculate rewards using Rouge 
+        rewards = torch.zeros(batch_size)
+
+
+
+        
+        
 
         loss.backward()
 
