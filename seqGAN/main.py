@@ -16,14 +16,13 @@ PG_TRAIN_EPOCHS = 50
 
 # MAIN
 if __name__ == '__main__':
+
+    seq2seq_checkpoint_file = "./Seq2Seq_model_50000"
     # Model
-    model = Model()
+    model = Model(seq2seq_checkpoint_file)
 
     if config.use_gpu:
-        gen = gen.cuda()
-
-
-    seq2seq_checkpoint_file = None
+        model = model.cuda()
 
     # Load data
     trainer = TrainSeq2Seq()
@@ -32,7 +31,7 @@ if __name__ == '__main__':
 
     # GENERATOR MLE TRAINING - Pretrain
     print('Starting Generator MLE Training...')
-    trainer.train_nll(MLE_TRAIN_EPOCHS, iter, running_avg_loss)
+    #trainer.train_nll(MLE_TRAIN_EPOCHS, iter, running_avg_loss)
 
     # ADVERSARIAL TRAINING
     print('\nStarting PG Training...')

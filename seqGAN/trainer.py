@@ -61,6 +61,7 @@ class TrainSeq2Seq(object):
         start_iter, start_loss = 0, 0
 
         if model_file_path is not None:
+            print("Loading checkpoint .... ")
             state = torch.load(model_file_path, map_location= lambda storage, location: storage)
             start_iter = state['iter']
             start_loss = state['current_loss']
@@ -194,11 +195,11 @@ class TrainSeq2Seq(object):
             output_ids.append([])
 
         for di in range(min(max_dec_len, config.max_dec_steps)):
+            #y_t_1 = dec_batch[:, di]  # Teacher forcing
             final_dist, s_t_1,  c_t_1, attn_dist, p_gen, next_coverage = self.model.decoder(y_t_1, s_t_1,
                                                         encoder_outputs, encoder_feature, enc_padding_mask, c_t_1,
                                                         extra_zeros, enc_batch_extend_vocab,
                                                                            coverage, di)
-
             target = target_batch[:, di]
             gold_probs = torch.gather(final_dist, 1, target.unsqueeze(1)).squeeze()
             step_loss = -torch.log(gold_probs + config.eps) # NLL
@@ -211,28 +212,25 @@ class TrainSeq2Seq(object):
             _, idx = torch.max(final_dist, 1)
             idx = idx.reshape(batch_size, -1).squeeze()
             y_t_1 = idx
-            
+
             for i, pred in enumerate(y_t_1):
                 if not pred.item() == data.PAD_TOKEN:
                     output_ids[i].append(pred.item())
-
-        sum_losses = torch.sum(torch.stack(step_losses, 1), 1)
-        batch_avg_loss = sum_losses/dec_lens_var
-        loss = torch.mean(batch_avg_loss)
 
         # This is for rouge
         original_abstracts = batch.original_abstracts_sents
         predicted_abstracts = [data.outputids2words(ids, self.vocab, None) for ids in output_ids]
 
-
-        scores = rouge.get_scores(original_abstracts, predicted_abstracts)
-        print(scores)
-
-        assert False
+        #assert False
         # ToDo: Calculate rewards using Rouge 
+        scores = rouge.get_scores(original_abstracts, predicted_abstracts)
         rewards = torch.zeros(batch_size)
 
 
+        # ToDo: Multiply the nll loss with the rouge gain
+        #sum_losses = torch.sum(torch.stack(step_losses, 1), 1)
+        #batch_avg_loss = sum_losses/dec_lens_var
+        loss = torch.mean(batch_avg_loss)
         loss.backward()
 
         self.norm = clip_grad_norm_(self.model.encoder.parameters(), config.max_grad_norm)
