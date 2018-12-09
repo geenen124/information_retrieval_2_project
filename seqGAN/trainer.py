@@ -171,6 +171,11 @@ class TrainSeq2Seq(object):
                 self.save_model(running_avg_loss, iter)
 
 
+    def get_rouge_scores(self, ref_sum, pred_sum):
+        scores = rouge.get_scores(ref_sum, pred_sum)
+        return scores[0]['rouge-l']['f']
+
+
     def train_one_batch_pg(self, batch):
         batch_size = batch.batch_size
 
@@ -221,10 +226,9 @@ class TrainSeq2Seq(object):
         original_abstracts = batch.original_abstracts_sents
         predicted_abstracts = [data.outputids2words(ids, self.vocab, None) for ids in output_ids]
 
-        #assert False
-        # ToDo: Calculate rewards using Rouge 
-        scores = rouge.get_scores(original_abstracts, predicted_abstracts)
+        # ToDo: Calculate rewards using Rouge
         rewards = torch.zeros(batch_size)
+        assert False
 
 
         # ToDo: Multiply the nll loss with the rouge gain
