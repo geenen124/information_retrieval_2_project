@@ -6,8 +6,8 @@ import argparse
 
 import torch
 from torch.nn.utils import clip_grad_norm_
-
 from torch.optim import Adagrad, Adam
+from torch.autograd import Variable
 
 import numpy as np
 
@@ -173,7 +173,19 @@ class TrainSeq2Seq(object):
 
     def get_rouge_scores(self, ref_sum, pred_sum):
         scores = rouge.get_scores(ref_sum, pred_sum)
-        return scores[0]['rouge-l']['f']
+        f1_rL = [score['rouge-l']['f'] for score in scores]
+        return torch.Tensor(f1_rL)
+
+
+    def compute_batched_loss(self, word_losses, orig, pred):
+        orig_sum = []
+        pred_sum = []
+
+        for i in range(len(orig)):
+            orig_sum.append(' '.join(map(str, orig[i])))
+            pred_sum.append(' '.join(map(str, orig[i])))
+
+        return self.get_rouge_scores(orig_sum, pred_sum)
 
 
     def train_one_batch_pg(self, batch):
@@ -198,6 +210,7 @@ class TrainSeq2Seq(object):
 
         for _ in range(batch_size):
             output_ids.append([])
+            step_losses.append([])
 
         for di in range(min(max_dec_len, config.max_dec_steps)):
             #y_t_1 = dec_batch[:, di]  # Teacher forcing
@@ -211,7 +224,6 @@ class TrainSeq2Seq(object):
                 
             step_mask = dec_padding_mask[:, di]
             step_loss = step_loss * step_mask
-            step_losses.append(step_loss)
 
             # Move on to next token
             _, idx = torch.max(final_dist, 1)
@@ -221,20 +233,17 @@ class TrainSeq2Seq(object):
             for i, pred in enumerate(y_t_1):
                 if not pred.item() == data.PAD_TOKEN:
                     output_ids[i].append(pred.item())
+                    step_losses[i].append(step_loss)
 
-        # This is for rouge
+        # Obtain the original and predicted summaries
         original_abstracts = batch.original_abstracts_sents
         predicted_abstracts = [data.outputids2words(ids, self.vocab, None) for ids in output_ids]
 
-        # ToDo: Calculate rewards using Rouge
-        rewards = torch.zeros(batch_size)
-        assert False
+        # Compute the batched loss
+        batched_losses = self.compute_batched_loss(step_losses, original_abstracts, predicted_abstracts)
+        batched_losses = Variable(batched_losses, requires_grad=True)
 
-
-        # ToDo: Multiply the nll loss with the rouge gain
-        #sum_losses = torch.sum(torch.stack(step_losses, 1), 1)
-        #batch_avg_loss = sum_losses/dec_lens_var
-        loss = torch.mean(batch_avg_loss)
+        loss = torch.mean(batched_losses)
         loss.backward()
 
         self.norm = clip_grad_norm_(self.model.encoder.parameters(), config.max_grad_norm)
