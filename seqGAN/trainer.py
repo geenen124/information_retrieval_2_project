@@ -27,7 +27,7 @@ class TrainSeq2Seq(object):
         self.vocab = Vocab(config.vocab_path, config.vocab_size)
         self.batcher = Batcher(config.train_data_path, self.vocab, mode='train',
                                batch_size=config.batch_size, single_pass=False)
-        time.sleep(15)
+        #time.sleep(15)
 
         train_dir = './train_log'
         if not os.path.exists(train_dir):
@@ -148,7 +148,7 @@ class TrainSeq2Seq(object):
         pg_batcher = Batcher(config.train_data_path, self.vocab, mode='train',
             batch_size=config.batch_size, single_pass=False)
 
-        time.sleep(15)
+        #time.sleep(15)
 
 
         start = time.time()
@@ -177,15 +177,55 @@ class TrainSeq2Seq(object):
         return torch.Tensor(f1_rL)
 
 
+    def compute_pg_loss(orig, pred, sentence_losses):
+        assert False
+
+
     def compute_batched_loss(self, word_losses, orig, pred):
         orig_sum = []
+        new_pred = []
         pred_sum = []
+        sentence_losses = []
 
+        # Convert the original sum as one single string per batch
         for i in range(len(orig)):
             orig_sum.append(' '.join(map(str, orig[i])))
-            pred_sum.append(' '.join(map(str, orig[i])))
+            new_pred.append([])
+            pred_sum.append([])
+            sentence_losses.append([])
 
-        return self.get_rouge_scores(orig_sum, pred_sum)
+        for i in range(len(pred)):
+            sentence = []
+            sentence = pred[i]
+            losses = word_losses[i]
+            count = 0
+            while len(sentence) > 0:
+                try:
+                    idx = sentence.index(".")
+                except ValueError:
+                    idx = len(sentence)
+
+                if count>0:
+                    new_pred[i].append(new_pred[i][count-1] + sentence[:idx+1])
+                else:
+                    new_pred[i].append(sentence[:idx+1])
+
+                sentence_losses[i].append(sum(losses[:idx+1]))
+
+                sentence = sentence[idx+1:]
+                losses = losses[idx+1:]
+                count += 1
+
+        for i in range(len(pred)):
+            for j in range(len(new_pred[i])):
+                pred_sum[i].append(' '.join(map(str, new_pred[i][j]))
+
+
+        pg_losses = []
+        for i in range(len(pred)):
+            pg_losses.append(self.compute_pg_loss(orig_sum[i], pred_sum[i], sentence_losses[i]))
+
+        return torch.Tensor(pg_losses)
 
 
     def train_one_batch_pg(self, batch):
