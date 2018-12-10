@@ -148,8 +148,7 @@ class TrainSeq2Seq(object):
         pg_batcher = Batcher(config.train_data_path, self.vocab, mode='train',
             batch_size=config.batch_size, single_pass=False)
 
-        #time.sleep(15)
-
+        time.sleep(15)
 
         start = time.time()
         running_avg_loss = 0
@@ -174,11 +173,37 @@ class TrainSeq2Seq(object):
     def get_rouge_scores(self, ref_sum, pred_sum):
         scores = rouge.get_scores(ref_sum, pred_sum)
         f1_rL = [score['rouge-l']['f'] for score in scores]
-        return torch.Tensor(f1_rL)
+        return f1_rL
 
 
-    def compute_pg_loss(orig, pred, sentence_losses):
-        assert False
+    def get_rewards(self, orig, pred):
+        rewards = []
+        for i in range(len(orig)):
+            rewards.append([])
+            rewards[i] = []
+            prev_score = None
+            for j in range(len(pred[i])):
+                if prev_score is None:
+                    prev_score = self.get_rouge_scores(orig[i], pred[i][j])[0]
+                    rewards[i].append(0)
+                else:
+                    score = self.get_rouge_scores(orig[i], pred[i][j])[0]
+                    r_gain = (score - prev_score) / score
+                    rewards[i].append(r_gain)
+
+
+        # TODO: Is the rouge gain correct reward? Or should it be 1-rouge)gain?
+        return rewards
+
+
+    def compute_pg_loss(self, orig, pred, sentence_losses):
+        rewards = self.get_rewards(orig, pred)
+
+        pg_losses = [[rs * sentence_losses[ri][rsi]  for rsi, rs in enumerate(r)] for ri, r in enumerate(rewards)]
+        pg_losses = [sum(pg) for pg in pg_losses]
+
+        return pg_losses
+
 
 
     def compute_batched_loss(self, word_losses, orig, pred):
@@ -218,12 +243,10 @@ class TrainSeq2Seq(object):
 
         for i in range(len(pred)):
             for j in range(len(new_pred[i])):
-                pred_sum[i].append(' '.join(map(str, new_pred[i][j]))
+                pred_sum[i].append(' '.join(map(str, new_pred[i][j])))
 
 
-        pg_losses = []
-        for i in range(len(pred)):
-            pg_losses.append(self.compute_pg_loss(orig_sum[i], pred_sum[i], sentence_losses[i]))
+        pg_losses = self.compute_pg_loss(orig_sum, pred_sum, sentence_losses)
 
         return torch.Tensor(pg_losses)
 
@@ -273,7 +296,10 @@ class TrainSeq2Seq(object):
             for i, pred in enumerate(y_t_1):
                 if not pred.item() == data.PAD_TOKEN:
                     output_ids[i].append(pred.item())
-                    step_losses[i].append(step_loss)
+
+            # TODO: Check the correctness of this
+            for i, loss in enumerate(step_loss):
+                step_losses[i].append(step_loss[i].item())
 
         # Obtain the original and predicted summaries
         original_abstracts = batch.original_abstracts_sents
