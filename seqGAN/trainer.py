@@ -188,7 +188,7 @@ class TrainSeq2Seq(object):
                     rewards[i].append(0)
                 else:
                     score = self.get_rouge_scores(orig[i], pred[i][j])[0]
-                    r_gain = (score - prev_score) / score
+                    r_gain = (score - prev_score) / score if score > 0 else 0
                     rewards[i].append(r_gain)
 
 
@@ -308,6 +308,7 @@ class TrainSeq2Seq(object):
         # Compute the batched loss
         batched_losses = self.compute_batched_loss(step_losses, original_abstracts, predicted_abstracts)
         batched_losses = Variable(batched_losses, requires_grad=True)
+        batched_losses = batched_losses / dec_lens_var
 
         loss = torch.mean(batched_losses)
         loss.backward()
