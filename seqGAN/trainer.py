@@ -55,8 +55,8 @@ class TrainSeq2Seq(object):
         params = list(self.model.encoder.parameters()) + list(self.model.decoder.parameters()) + \
                  list(self.model.reduce_state.parameters())
         initial_lr = config.lr_coverage if config.is_coverage else config.lr
-        #self.optimizer = Adagrad(params, lr=initial_lr, initial_accumulator_value=config.adagrad_init_acc)
-        self.optimizer = Adam(params, lr=initial_lr)
+        self.optimizer = Adagrad(params, lr=initial_lr, initial_accumulator_value=config.adagrad_init_acc)
+        #self.optimizer = Adam(params, lr=initial_lr)
 
         start_iter, start_loss = 0, 0
 
@@ -185,14 +185,14 @@ class TrainSeq2Seq(object):
             for j in range(len(pred[i])):
                 if prev_score is None:
                     prev_score = self.get_rouge_scores(orig[i], pred[i][j])[0]
-                    rewards[i].append(0)
+                    r_gain = 0
                 else:
                     score = self.get_rouge_scores(orig[i], pred[i][j])[0]
                     r_gain = (score - prev_score) / score if score > 0 else 0
-                    rewards[i].append(r_gain)
+                    
+                rewards[i].append(1.0 - r_gain)
 
 
-        # TODO: Is the rouge gain correct reward? Or should it be 1-rouge)gain?
         return rewards
 
 
@@ -248,7 +248,7 @@ class TrainSeq2Seq(object):
 
         pg_losses = self.compute_pg_loss(orig_sum, pred_sum, sentence_losses)
 
-        return torch.Tensor(pg_losses)
+        return pg_losses
 
 
     def train_one_batch_pg(self, batch):
@@ -297,9 +297,8 @@ class TrainSeq2Seq(object):
                 if not pred.item() == data.PAD_TOKEN:
                     output_ids[i].append(pred.item())
 
-            # TODO: Check the correctness of this
             for i, loss in enumerate(step_loss):
-                step_losses[i].append(step_loss[i].item())
+                step_losses[i].append(step_loss[i])
 
         # Obtain the original and predicted summaries
         original_abstracts = batch.original_abstracts_sents
@@ -307,10 +306,11 @@ class TrainSeq2Seq(object):
 
         # Compute the batched loss
         batched_losses = self.compute_batched_loss(step_losses, original_abstracts, predicted_abstracts)
-        batched_losses = Variable(batched_losses, requires_grad=True)
-        batched_losses = batched_losses / dec_lens_var
+        #batched_losses = Variable(batched_losses, requires_grad=True)
+        losses = torch.stack(batched_losses)
+        losses = losses / dec_lens_var
 
-        loss = torch.mean(batched_losses)
+        loss = torch.mean(losses)
         loss.backward()
 
         self.norm = clip_grad_norm_(self.model.encoder.parameters(), config.max_grad_norm)
