@@ -18,6 +18,11 @@ Base version reference: *[pointer_summerizer](https://github.com/atulkum/pointer
 5. Run `cd pyrouge`
 6. Check to see if it worked by running `python -m pyrouge.test`
 
+# How to install python pyrouge
+--------------------------------------------
+1. Follow the install instructions of `git clone https://github.com/pltrdy/rouge`
+
+
 # How to run training:
 --------------------------------------------
 * You might need to change some path and parameters in data_util/config.py
