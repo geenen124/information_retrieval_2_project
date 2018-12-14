@@ -1,6 +1,6 @@
 import os
 
-root_dir = os.path.expanduser("./")
+root_dir = os.path.expanduser("/home/lgpu0231/information_retrieval_2_project/")
 
 train_data_path = os.path.join(root_dir, "cnn-dailymail-master/finished_files/train.bin")
 train_data_path = os.path.join(root_dir, "cnn-dailymail-master/finished_files/chunked/train_*")
