@@ -11,13 +11,14 @@ from data_util import config
 from trainer import TrainSeq2Seq
 
 MLE_TRAIN_EPOCHS = 0#100
-PG_TRAIN_EPOCHS = 50
+PG_TRAIN_EPOCHS = 10000
 
 
 # MAIN
 if __name__ == '__main__':
 
-    seq2seq_checkpoint_file = "./Seq2Seq_model_50000"
+    seq2seq_checkpoint_file = "/home/lgpu0231/information_retrieval_2_project/Seq2Seq_model_50000"
+
     # Model
     model = Model(seq2seq_checkpoint_file)
 
