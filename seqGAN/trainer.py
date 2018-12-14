@@ -10,6 +10,8 @@ from torch.optim import Adagrad, Adam
 from torch.autograd import Variable
 
 import numpy as np
+import pickle
+from datetime import datetime
 
 from data_util.batcher import Batcher
 from data_util.data import Vocab
@@ -29,12 +31,14 @@ class TrainSeq2Seq(object):
                                batch_size=config.batch_size, single_pass=False)
         #time.sleep(15)
 
-        train_dir = './train_log'
+        train_dir = "/home/lgpu0231"  #'./train_dumps'
         if not os.path.exists(train_dir):
+            #print('create dict')
             os.mkdir(train_dir)
 
-        self.model_dir = os.path.join(train_dir, 'model')
+        self.model_dir = os.path.join(train_dir, 'dumps_model_{:%m_%d_%H_%M}'.format(datetime.now()))
         if not os.path.exists(self.model_dir):
+            #print('create folder')
             os.mkdir(self.model_dir)
 
     def save_model(self, running_avg_loss, iter):
@@ -138,7 +142,6 @@ class TrainSeq2Seq(object):
             if iter % 1000 == 0:
                 self.save_model(running_avg_loss, iter)
 
-
     def train_pg(self, n_iters):
         """
         The generator is trained using policy gradients, using the reward from the discriminator.
@@ -152,6 +155,8 @@ class TrainSeq2Seq(object):
 
         start = time.time()
         running_avg_loss = 0
+        pg_losses = []
+        run_avg_losses = []
 
         for iter in range(n_iters):
             batch = pg_batcher.next_batch()
@@ -159,16 +164,20 @@ class TrainSeq2Seq(object):
 
             running_avg_loss = calc_running_avg_loss(loss, running_avg_loss, iter)
             print("Iteration:", iter, "  PG loss:", loss, "  Running avg loss:", running_avg_loss)
-            iter += 1
+            pg_losses.append(loss)
+            run_avg_losses.append(running_avg_loss)
 
-            print_interval = 1000
+            print_interval = 10
             if iter % print_interval == 0:
                 print('steps %d, seconds for %d batch: %.2f , loss: %f' % (iter, print_interval,
                                                                            time.time() - start, loss))
-                start = time.time()
-            if iter % 1000 == 0:
-                self.save_model(running_avg_loss, iter)
 
+                start = time.time()
+
+            if iter % 10 == 0:
+                self.save_model(running_avg_loss, iter)
+                pickle.dump(pg_losses, open(os.path.join(self.model_dir, 'pg_losses_{}.p'.format(iter)),'wb'))
+                pickle.dump(run_avg_losses, open(os.path.join(self.model_dir, 'run_avg_losses_{}.p'.format(iter)),'wb'))
 
     def get_rouge_scores(self, ref_sum, pred_sum):
         scores = rouge.get_scores(ref_sum, pred_sum)
@@ -178,20 +187,23 @@ class TrainSeq2Seq(object):
 
     def get_rewards(self, orig, pred):
         rewards = []
+	# We want reward of the whole sentence - reward of the sentence without sentence i
+
         for i in range(len(orig)):
+            # Reward using the whole sentence
+            total_score = self.get_rouge_scores(orig[i], ' '.join(pred[i]))[0]
+
             rewards.append([])
             rewards[i] = []
-            prev_score = None
-            for j in range(len(pred[i])):
-                if prev_score is None:
-                    prev_score = self.get_rouge_scores(orig[i], pred[i][j])[0]
-                    r_gain = 0
-                else:
-                    score = self.get_rouge_scores(orig[i], pred[i][j])[0]
-                    r_gain = (score - prev_score) / score if score > 0 else 0
-                    
-                rewards[i].append(1.0 - r_gain)
 
+            for j in range(len(pred[i])):
+                # sequence without sentence j
+                sub_summary = [sen for idx,sen in enumerate(pred[i]) if idx != j] if len(pred[i]) > 1 else pred[i]
+
+                score = self.get_rouge_scores(orig[i], ' '.join(sub_summary))[0]
+                r_gain = ((total_score - score) / total_score) if total_score > 0 else 0
+
+                rewards[i].append(1.0 - r_gain)
 
         return rewards
 
