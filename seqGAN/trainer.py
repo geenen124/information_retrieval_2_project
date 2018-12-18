@@ -182,7 +182,7 @@ class TrainSeq2Seq(object):
                 pickle.dump(run_avg_losses, open(os.path.join(self.model_dir, 'run_avg_losses_{}.p'.format(iter)),'wb'))
 
     def get_rouge_scores(self, ref_sum, pred_sum):
-        scores = rouge.get_scores(ref_sum, pred_sum)
+        scores = rouge.get_scores(pred_sum, ref_sum)
         f1_rL = [score['rouge-l']['f'] for score in scores]
         return f1_rL
 
@@ -203,9 +203,9 @@ class TrainSeq2Seq(object):
                 sub_summary = [sen for idx,sen in enumerate(pred[i]) if idx != j] if len(pred[i]) > 1 else pred[i]
 
                 score = self.get_rouge_scores(orig[i], ' '.join(sub_summary))[0]
-                r_gain = ((total_score - score) / total_score) if total_score > 0 else 0
+                r_weight = ((total_score - score) / total_score) if total_score > 0 else 1
 
-                rewards[i].append(1.0 - r_gain)
+                rewards[i].append(r_weight)
 
         return rewards
 
