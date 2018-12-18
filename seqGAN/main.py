@@ -10,6 +10,8 @@ from training_ptr_gen.model import Model
 from data_util import config
 from trainer import TrainSeq2Seq
 
+import pickle
+
 MLE_TRAIN_EPOCHS = 0#100
 PG_TRAIN_EPOCHS = 10000
 
@@ -17,7 +19,9 @@ PG_TRAIN_EPOCHS = 10000
 # MAIN
 if __name__ == '__main__':
 
-    seq2seq_checkpoint_file = "/home/lgpu0231/information_retrieval_2_project/Seq2Seq_model_50000"
+    seq2seq_checkpoint_file = "/home/lgpu0231/dumps_model_12_16_11_08/model_350_1545038893"
+    pg_losses = pickle.load(open("/home/lgpu0231/dumps_model_12_16_11_08/pg_losses_350.p", 'rb'))
+    run_avg_losses = pickle.load(open("/home/lgpu0231/dumps_model_12_16_11_08/run_avg_losses_350.p", 'rb'))
 
     # Model
     model = Model(seq2seq_checkpoint_file)
@@ -36,4 +40,4 @@ if __name__ == '__main__':
 
     # ADVERSARIAL TRAINING
     print('\nStarting PG Training...')
-    trainer.train_pg(PG_TRAIN_EPOCHS)
+    trainer.train_pg(PG_TRAIN_EPOCHS, iter, running_avg_loss, pg_losses, run_avg_losses)

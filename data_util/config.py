@@ -5,11 +5,6 @@ root_dir = os.path.expanduser("/home/lgpu0231/information_retrieval_2_project/")
 train_data_path = os.path.join(root_dir, "cnn-dailymail-master/finished_files/train.bin")
 train_data_path = os.path.join(root_dir, "cnn-dailymail-master/finished_files/chunked/train_*")
 
-
-### Remove
-train_data_path = os.path.join(root_dir, "cnn-dailymail-master/finished_files/chunked/val_*")
-### Remove
-
 eval_data_path = os.path.join(root_dir, "cnn-dailymail-master/finished_files/val.bin")
 decode_data_path = os.path.join(root_dir, "cnn-dailymail-master/finished_files/test.bin")
 vocab_path = os.path.join(root_dir, "cnn-dailymail-master/finished_files/vocab")
@@ -38,6 +33,6 @@ cov_loss_wt = 1.0
 eps = 1e-12
 max_iterations = 500000
 
-use_gpu=False
+use_gpu=True
 
 lr_coverage=0.15

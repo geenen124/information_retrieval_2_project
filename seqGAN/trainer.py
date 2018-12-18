@@ -142,7 +142,7 @@ class TrainSeq2Seq(object):
             if iter % 1000 == 0:
                 self.save_model(running_avg_loss, iter)
 
-    def train_pg(self, n_iters):
+    def train_pg(self, n_iters, start_iter, start_running_avg_loss, start_pg_losses, start_run_avg_losses):
         """
         The generator is trained using policy gradients, using the reward from the discriminator.
         Training is done for num_batches batches.
@@ -154,11 +154,13 @@ class TrainSeq2Seq(object):
         time.sleep(15)
 
         start = time.time()
-        running_avg_loss = 0
-        pg_losses = []
-        run_avg_losses = []
+        running_avg_loss = start_running_avg_loss
+        pg_losses = start_pg_losses
+        run_avg_losses = start_run_avg_losses
 
-        for iter in range(n_iters):
+        for i in range(n_iters):
+            iter = start_iter + i
+
             batch = pg_batcher.next_batch()
             loss = self.train_one_batch_pg(batch)
 
