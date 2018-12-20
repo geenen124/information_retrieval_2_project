@@ -185,7 +185,7 @@ class TrainSeq2Seq(object):
                 pickle.dump(run_avg_losses, open(os.path.join(self.model_dir, 'train_run_avg_losses_{}.p'.format(iter)),'wb'))
                 # Run eval
                 eval_processor = Evaluate_pg(model_file_path)
-                eval_processor.run_eval()
+                eval_processor.run_eval(self.model_dir, iter)
 
     def get_rouge_scores(self, ref_sum, pred_sum):
         scores = rouge.get_scores(pred_sum, ref_sum)
