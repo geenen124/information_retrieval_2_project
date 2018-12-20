@@ -125,6 +125,7 @@ class Evaluate_pg(object):
         s_t_1 = self.model.reduce_state(encoder_hidden)
 
         step_losses = []
+        output_ids = []
         y_t_1 = torch.ones(batch_size, dtype=torch.long) * self.vocab.word2id(data.START_DECODING)
 
         if config.use_gpu:
@@ -155,8 +156,16 @@ class Evaluate_pg(object):
             idx = idx.reshape(batch_size, -1).squeeze()
             y_t_1 = idx
 
+            for i, pred in enumerate(y_t_1):
+                if not pred.item() == data.PAD_TOKEN:
+                    output_ids[i].append(pred.item())
+
             for i, loss in enumerate(step_loss):
                 step_losses[i].append(step_loss[i])
+
+        # Obtain the original and predicted summaries
+        original_abstracts = batch.original_abstracts_sents
+        predicted_abstracts = [data.outputids2words(ids, self.vocab, None) for ids in output_ids]
 
         # Compute the batched loss
         batched_losses = self.compute_batched_loss(step_losses, original_abstracts, predicted_abstracts)
