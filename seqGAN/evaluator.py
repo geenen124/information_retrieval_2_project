@@ -6,13 +6,13 @@ import sys
 
 import torch
 
-from data_util import config
+from data_util import config, data
 from data_util.batcher import Batcher
 from data_util.data import Vocab
 
 from data_util.utils import calc_running_avg_loss
-from train_util import get_input_from_batch, get_output_from_batch
-from model import Model
+from training_ptr_gen.train_util import get_input_from_batch, get_output_from_batch
+from training_ptr_gen.model import Model
 
 import pickle
 from rouge import Rouge
@@ -125,6 +125,11 @@ class Evaluate_pg(object):
         s_t_1 = self.model.reduce_state(encoder_hidden)
 
         step_losses = []
+        y_t_1 = torch.ones(batch_size, dtype=torch.long) * self.vocab.word2id(data.START_DECODING)
+
+        if config.use_gpu:
+            y_t_1 = y_t_1.cuda()
+
         for di in range(min(max_dec_len, config.max_dec_steps)):
             #y_t_1 = dec_batch[:, di]  # Teacher forcing
             final_dist, s_t_1, c_t_1,attn_dist, p_gen, next_coverage = self.model.decoder(y_t_1, s_t_1,
