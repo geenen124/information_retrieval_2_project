@@ -14,6 +14,7 @@ from data_util.utils import calc_running_avg_loss
 from train_util import get_input_from_batch, get_output_from_batch
 from model import Model
 
+import pickle
 from rouge import Rouge
 
 rouge = Rouge()
@@ -157,10 +158,12 @@ class Evaluate_pg(object):
 
         return loss.item()
 
-    def run_eval(self):
+    def run_eval(self, model_dir, train_iter_id):
         running_avg_loss, iter = 0, 0
         start = time.time()
         batch = self.batcher.next_batch()
+        pg_losses = []
+        run_avg_losses = []
         while batch is not None:
             loss = self.eval_one_batch(batch)
 
@@ -174,6 +177,13 @@ class Evaluate_pg(object):
                 iter, print_interval, time.time() - start, running_avg_loss))
                 start = time.time()
             batch = self.batcher.next_batch()
+
+            pg_losses.append(loss)
+            run_avg_losses.append(running_avg_loss)
+
+        # Dump val losses. We actually need only the last running avg loss, but well
+        pickle.dump(pg_losses, open(os.path.join(model_dir, 'val_pg_losses_{}.p'.format(train_iter_id)),'wb'))
+        pickle.dump(run_avg_losses, open(os.path.join(model_dir, 'val_run_avg_losses_{}.p'.format(train_iter_id)),'wb'))
 
 
 #if __name__ == '__main__':
