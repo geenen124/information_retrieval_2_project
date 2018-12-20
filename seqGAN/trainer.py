@@ -18,6 +18,7 @@ from data_util.data import Vocab
 from data_util.utils import calc_running_avg_loss
 from data_util import config, data
 from training_ptr_gen.train_util import get_input_from_batch, get_output_from_batch
+from evaluator import Evaluate_pg
 
 from rouge import Rouge
 
@@ -36,7 +37,7 @@ class TrainSeq2Seq(object):
             #print('create dict')
             os.mkdir(train_dir)
 
-        self.model_dir = os.path.join(train_dir, 'dumps_model_{:%m_%d_%H_%M}'.format(datetime.now()))
+        self.model_dir = os.path.join(train_dir, 'dummy')#'dumps_model_{:%m_%d_%H_%M}'.format(datetime.now()))
         if not os.path.exists(self.model_dir):
             #print('create folder')
             os.mkdir(self.model_dir)
@@ -178,9 +179,13 @@ class TrainSeq2Seq(object):
                 start = time.time()
 
             if iter % 10 == 0:
+                # Dump model and losses
                 model_file_path = self.save_model(running_avg_loss, iter)
-                pickle.dump(pg_losses, open(os.path.join(self.model_dir, 'pg_losses_{}.p'.format(iter)),'wb'))
-                pickle.dump(run_avg_losses, open(os.path.join(self.model_dir, 'run_avg_losses_{}.p'.format(iter)),'wb'))
+                pickle.dump(pg_losses, open(os.path.join(self.model_dir, 'train_pg_losses_{}.p'.format(iter)),'wb'))
+                pickle.dump(run_avg_losses, open(os.path.join(self.model_dir, 'train_run_avg_losses_{}.p'.format(iter)),'wb'))
+                # Run eval
+                eval_processor = Evaluate_pg(model_file_path)
+                eval_processor.run_eval()
 
     def get_rouge_scores(self, ref_sum, pred_sum):
         scores = rouge.get_scores(pred_sum, ref_sum)
