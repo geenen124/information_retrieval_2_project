@@ -52,6 +52,7 @@ class TrainSeq2Seq(object):
         }
         model_save_path = os.path.join(self.model_dir, 'model_%d_%d' % (iter, int(time.time())))
         torch.save(state, model_save_path)
+        return model_save_path
 
     def setup(self, seqseq_model, model_file_path):
         self.model = seqseq_model
@@ -177,7 +178,7 @@ class TrainSeq2Seq(object):
                 start = time.time()
 
             if iter % 10 == 0:
-                self.save_model(running_avg_loss, iter)
+                model_file_path = self.save_model(running_avg_loss, iter)
                 pickle.dump(pg_losses, open(os.path.join(self.model_dir, 'pg_losses_{}.p'.format(iter)),'wb'))
                 pickle.dump(run_avg_losses, open(os.path.join(self.model_dir, 'run_avg_losses_{}.p'.format(iter)),'wb'))
 
