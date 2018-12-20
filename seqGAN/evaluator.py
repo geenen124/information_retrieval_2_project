@@ -130,6 +130,10 @@ class Evaluate_pg(object):
         if config.use_gpu:
             y_t_1 = y_t_1.cuda()
 
+        for _ in range(batch_size):
+            output_ids.append([])
+            step_losses.append([])
+
         for di in range(min(max_dec_len, config.max_dec_steps)):
             #y_t_1 = dec_batch[:, di]  # Teacher forcing
             final_dist, s_t_1, c_t_1,attn_dist, p_gen, next_coverage = self.model.decoder(y_t_1, s_t_1,
