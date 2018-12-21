@@ -37,7 +37,7 @@ class TrainSeq2Seq(object):
             #print('create dict')
             os.mkdir(train_dir)
 
-        self.model_dir = os.path.join(train_dir, 'dummy')#'dumps_model_{:%m_%d_%H_%M}'.format(datetime.now()))
+        self.model_dir = os.path.join(train_dir, 'dumps_model_{:%m_%d_%H_%M}'.format(datetime.now()))
         if not os.path.exists(self.model_dir):
             #print('create folder')
             os.mkdir(self.model_dir)
@@ -185,7 +185,13 @@ class TrainSeq2Seq(object):
                 pickle.dump(run_avg_losses, open(os.path.join(self.model_dir, 'train_run_avg_losses_{}.p'.format(iter)),'wb'))
                 # Run eval
                 eval_processor = Evaluate_pg(model_file_path)
-                eval_processor.run_eval(self.model_dir, iter)
+                eval_losses = eval_processor.run_eval(self.model_dir, iter)
+
+                # Check if we should stop
+                avg_eval_loss = np.mean(eval_losses)
+                if running_avg_loss < avg_eval_loss:
+                    print("Stopping at iteration {}".format(iter))
+                    break
 
     def get_rouge_scores(self, ref_sum, pred_sum):
         scores = rouge.get_scores(pred_sum, ref_sum)
