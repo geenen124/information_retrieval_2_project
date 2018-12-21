@@ -199,9 +199,11 @@ class Evaluate_pg(object):
             pg_losses.append(loss)
             run_avg_losses.append(running_avg_loss)
 
-        # Dump val losses. We actually need only the last running avg loss, but well
+        # Dump val losses
         pickle.dump(pg_losses, open(os.path.join(model_dir, 'val_pg_losses_{}.p'.format(train_iter_id)),'wb'))
         pickle.dump(run_avg_losses, open(os.path.join(model_dir, 'val_run_avg_losses_{}.p'.format(train_iter_id)),'wb'))
+
+        return run_avg_losses
 
 
 #if __name__ == '__main__':
