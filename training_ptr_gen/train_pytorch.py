@@ -12,7 +12,7 @@ from torch.utils.data import DataLoader
 from torch.optim import Adagrad, Adam
 
 from data_util import config
-from data_util.batcher import Batch
+from data_util.padded_batch import PaddedBatch
 from data_util.data import Vocab
 from data_util.utils import calc_running_avg_loss
 from data_util.daily_mail_dataset import DailyMailDataset
@@ -24,7 +24,7 @@ use_cuda = config.use_gpu and torch.cuda.is_available()
 def create_batch_collate(vocab, batch_size):
     def collate_batch(examples_list):
         inputs = sorted(examples_list, key=lambda inp: inp.enc_len, reverse=True) # sort by length of encoder sequence
-        batch = Batch(inputs, vocab, batch_size)
+        batch = PaddedBatch(inputs, vocab, batch_size)
         return batch
 
     return collate_batch
@@ -137,11 +137,12 @@ class Train(object):
         start = time.time()
 
         for epoch in range(num_epochs):
+            print(f"Epoch {epoch+1}")
             for batch in dataloader:
                 loss = self.train_one_batch(batch)
 
                 running_avg_loss = calc_running_avg_loss(loss, running_avg_loss, iter)
-                print("Iteration:", iter, "  loss:", loss, "  Running avg loss:", running_avg_loss)
+                # print("Iteration:", iter, "  loss:", loss, "  Running avg loss:", running_avg_loss)
                 iter += 1
 
                 if iter >= n_iters:
@@ -153,6 +154,7 @@ class Train(object):
                                                                                time.time() - start, loss))
                     start = time.time()
                 if iter % 1000 == 0:
+                    running_avg_loss = calc_running_avg_loss(loss, running_avg_loss, iter)
                     self.save_model(running_avg_loss, iter)
 
 
