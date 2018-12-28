@@ -26,7 +26,7 @@ class Evaluate_pg(object):
         self.vocab = Vocab(config.vocab_path, config.vocab_size)
         self.batcher = Batcher(config.eval_data_path, self.vocab, mode='eval',
                                batch_size=config.batch_size, single_pass=True)
-        time.sleep(15)
+        # time.sleep(15)
         model_name = os.path.basename(model_file_path)
 
         eval_dir = os.path.join(config.log_root, 'eval_%s' % (model_name))
@@ -183,8 +183,7 @@ class Evaluate_pg(object):
         pg_losses = []
         run_avg_losses = []
         while batch is not None:
-            loss = self.eval_one_batch(batch)
-
+            loss = self.eval_one_batch(batch)            
             running_avg_loss = calc_running_avg_loss(loss, running_avg_loss, iter)
             print("Iteration:", iter, "  loss:", loss, "  Running avg loss:", running_avg_loss)
             iter += 1
@@ -202,8 +201,8 @@ class Evaluate_pg(object):
         # Dump val losses
         pickle.dump(pg_losses, open(os.path.join(model_dir, 'val_pg_losses_{}.p'.format(train_iter_id)),'wb'))
         pickle.dump(run_avg_losses, open(os.path.join(model_dir, 'val_run_avg_losses_{}.p'.format(train_iter_id)),'wb'))
-
-        return run_avg_losses
+        
+        return run_avg_losses, pg_losses
 
 
 #if __name__ == '__main__':

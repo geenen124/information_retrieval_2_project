@@ -185,11 +185,11 @@ class TrainSeq2Seq(object):
                 pickle.dump(run_avg_losses, open(os.path.join(self.model_dir, 'train_run_avg_losses_{}.p'.format(iter)),'wb'))
                 # Run eval
                 eval_processor = Evaluate_pg(model_file_path)
-                eval_losses = eval_processor.run_eval(self.model_dir, iter)
+                eval_run_losses, eval_losses = eval_processor.run_eval(self.model_dir, iter)
 
                 # Check if we should stop
                 avg_eval_loss = np.mean(eval_losses)
-                if running_avg_loss < avg_eval_loss:
+                if loss < avg_eval_loss:
                     print("Stopping at iteration {}".format(iter))
                     break
 
