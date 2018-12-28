@@ -13,7 +13,7 @@ log_root = os.path.join(root_dir, "log")
 # Hyperparameters
 hidden_dim= 256
 emb_dim= 128
-batch_size= 16
+batch_size= 32
 max_enc_steps=400
 max_dec_steps=100
 beam_size=4
