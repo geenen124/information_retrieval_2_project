@@ -159,7 +159,7 @@ class TrainSeq2Seq(object):
         running_avg_loss = start_running_avg_loss
         pg_losses = start_pg_losses
         run_avg_losses = start_run_avg_losses
-
+        patience = 0
         for i in range(n_iters):
             iter = start_iter + i
 
@@ -189,9 +189,13 @@ class TrainSeq2Seq(object):
 
                 # Check if we should stop
                 avg_eval_loss = np.mean(eval_losses)
-                if loss < avg_eval_loss:
-                    print("Stopping at iteration {}".format(iter))
-                    break
+                if loss < avg_eval_loss 
+                    patience += 1
+                    if patience > 3:
+                        print("Stopping at iteration {}".format(iter))
+                        break
+                else: 
+                    patience = 0
 
     def get_rouge_scores(self, ref_sum, pred_sum):
         scores = rouge.get_scores(pred_sum, ref_sum)
