@@ -138,9 +138,6 @@ class Decoder(nn.Module):
         self.lstm = nn.LSTM(config.emb_dim, config.hidden_dim, num_layers=1, batch_first=True, bidirectional=False)
         init_lstm_wt(self.lstm)
 
-        if config.pointer_gen:
-            self.p_gen_linear = nn.Linear(config.hidden_dim * 4 + config.emb_dim, 1)
-
         #p_vocab
         self.out1 = nn.Linear(config.hidden_dim * 3, config.hidden_dim)
         self.out2 = nn.Linear(config.hidden_dim, config.vocab_size)
@@ -171,10 +168,6 @@ class Decoder(nn.Module):
             coverage = coverage_next
 
         p_gen = None
-        if config.pointer_gen:
-            p_gen_input = torch.cat((c_t, s_t_hat, x), 1)  # B x (2*2*hidden_dim + emb_dim)
-            p_gen = self.p_gen_linear(p_gen_input)
-            p_gen = torch.sigmoid(p_gen)
 
         output = torch.cat((lstm_out.view(-1, config.hidden_dim), c_t), 1) # B x hidden_dim * 3
         output = self.out1(output) # B x hidden_dim
@@ -184,16 +177,7 @@ class Decoder(nn.Module):
         output = self.out2(output) # B x vocab_size
         vocab_dist = F.softmax(output, dim=1)
 
-        if config.pointer_gen:
-            vocab_dist_ = p_gen * vocab_dist
-            attn_dist_ = (1 - p_gen) * attn_dist
-
-            if extra_zeros is not None:
-                vocab_dist_ = torch.cat([vocab_dist_, extra_zeros], 1)
-
-            final_dist = vocab_dist_.scatter_add(1, enc_batch_extend_vocab, attn_dist_)
-        else:
-            final_dist = vocab_dist
+        final_dist = vocab_dist
 
         return final_dist, s_t, c_t, attn_dist, p_gen, coverage
 
