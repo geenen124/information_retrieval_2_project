@@ -153,7 +153,7 @@ class TrainSeq2Seq(object):
         pg_batcher = Batcher(config.train_data_path, self.vocab, mode='train',
             batch_size=config.batch_size, single_pass=False)
 
-        time.sleep(15)
+        # time.sleep(15)
 
         start = time.time()
         running_avg_loss = start_running_avg_loss

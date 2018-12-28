@@ -224,7 +224,7 @@ class Batcher(object):
 #        'Bucket queue size: %i, Input queue size: %i'%
 #        (self._batch_queue.qsize(), self._example_queue.qsize()))
 
-      time.sleep(60)
+      # time.sleep(60)
       for idx,t in enumerate(self._example_q_threads):
         if not t.is_alive(): # if the thread is dead
           print('Found example queue thread dead. Restarting.')
