@@ -7,17 +7,18 @@ import argparse
 import torch
 from torch.nn.utils import clip_grad_norm_
 from torch.optim import Adagrad, Adam
+from torch.utils.data import DataLoader
 from torch.autograd import Variable
 
 import numpy as np
 import pickle
 from datetime import datetime
 
-from data_util.batcher import Batcher
+from data_util.daily_mail_dataset import DailyMailDataset
 from data_util.data import Vocab
 from data_util.utils import calc_running_avg_loss
 from data_util import config, data
-from training_ptr_gen.train_util import get_input_from_batch, get_output_from_batch
+from training_ptr_gen.train_util import get_input_from_batch, get_output_from_batch, create_batch_collate
 from evaluator import Evaluate_pg
 
 from rouge import Rouge
@@ -28,8 +29,9 @@ rouge = Rouge()
 class TrainSeq2Seq(object):
     def __init__(self):
         self.vocab = Vocab(config.vocab_path, config.vocab_size)
-        self.batcher = Batcher(config.train_data_path, self.vocab, mode='train',
-                               batch_size=config.batch_size, single_pass=False)
+        # self.batcher = Batcher(config.train_data_path, self.vocab, mode='train',
+        #                        batch_size=config.batch_size, single_pass=False)
+        self.dataset = DailyMailDataset("train", self.vocab)
         #time.sleep(15)
 
         train_dir = "/home/lgpu0231"  #'./train_dumps'
@@ -107,7 +109,7 @@ class TrainSeq2Seq(object):
                 step_coverage_loss = torch.sum(torch.min(attn_dist, coverage), 1)
                 step_loss = step_loss + config.cov_loss_wt * step_coverage_loss
                 coverage = next_coverage
-                
+
             step_mask = dec_padding_mask[:, di]
             step_loss = step_loss * step_mask
             step_losses.append(step_loss)
@@ -144,65 +146,68 @@ class TrainSeq2Seq(object):
             if iter % 1000 == 0:
                 self.save_model(running_avg_loss, iter)
 
-    def train_pg(self, n_iters, start_iter, start_running_avg_loss, start_pg_losses, start_run_avg_losses):
+    def train_pg(self, n_iters, start_iter, start_running_avg_loss, start_pg_losses, start_run_avg_losses, num_epochs=50):
         """
         The generator is trained using policy gradients, using the reward from the discriminator.
         Training is done for num_batches batches.
         """
 
-        pg_batcher = Batcher(config.train_data_path, self.vocab, mode='train',
-            batch_size=config.batch_size, single_pass=False)
-
-        time.sleep(15)
+        dataloader = DataLoader(self.dataset, batch_size=config.batch_size,
+                                shuffle=True, num_workers=1,
+                                collate_fn=create_batch_collate(self.vocab, config.batch_size))
+        # pg_batcher = Batcher(config.train_data_path, self.vocab, mode='train',
+        #     batch_size=config.batch_size, single_pass=False)
+        #
+        # time.sleep(15)
 
         start = time.time()
         running_avg_loss = start_running_avg_loss
         pg_losses = start_pg_losses
         run_avg_losses = start_run_avg_losses
+        iteration = start_iter
 
-        for i in range(n_iters):
-            iter = start_iter + i
+        for epoch in range(num_epochs):
+            print(f"Epoch {epoch+1}")
+            for batch in dataloader:
+                iteration += 1
 
-            batch = pg_batcher.next_batch()
-            loss = self.train_one_batch_pg(batch)
+                loss = self.train_one_batch_pg(batch)
 
-            running_avg_loss = calc_running_avg_loss(loss, running_avg_loss, iter)
-            print("Iteration:", iter, "  PG loss:", loss, "  Running avg loss:", running_avg_loss)
-            pg_losses.append(loss)
-            run_avg_losses.append(running_avg_loss)
+                running_avg_loss = calc_running_avg_loss(loss, running_avg_loss, iter)
+                print("Iteration:", iteration, "  PG loss:", loss, "  Running avg loss:", running_avg_loss)
+                pg_losses.append(loss)
+                run_avg_losses.append(running_avg_loss)
 
-            print_interval = 10
-            if iter % print_interval == 0:
-                print('steps %d, seconds for %d batch: %.2f , loss: %f' % (iter, print_interval,
-                                                                           time.time() - start, loss))
+                print_interval = 10
+                if iteration % print_interval == 0:
+                    print('steps %d, seconds for %d batch: %.2f , loss: %f' % (iter, print_interval,
+                                                                               time.time() - start, loss))
 
-                start = time.time()
+                    start = time.time()
 
-            if iter % 10 == 0:
-                # Dump model and losses
-                model_file_path = self.save_model(running_avg_loss, iter)
-                pickle.dump(pg_losses, open(os.path.join(self.model_dir, 'train_pg_losses_{}.p'.format(iter)),'wb'))
-                pickle.dump(run_avg_losses, open(os.path.join(self.model_dir, 'train_run_avg_losses_{}.p'.format(iter)),'wb'))
-                # Run eval
-                eval_processor = Evaluate_pg(model_file_path)
-                eval_losses = eval_processor.run_eval(self.model_dir, iter)
+                if iteration % 10 == 0:
+                    # Dump model and losses
+                    model_file_path = self.save_model(running_avg_loss, iteration)
+                    pickle.dump(pg_losses, open(os.path.join(self.model_dir, 'train_pg_losses_{}.p'.format(iteration)),'wb'))
+                    pickle.dump(run_avg_losses, open(os.path.join(self.model_dir, 'train_run_avg_losses_{}.p'.format(iteration)),'wb'))
+                    # Run eval
+                    eval_processor = Evaluate_pg(model_file_path)
+                    eval_losses = eval_processor.run_eval(self.model_dir, iteration)
 
-                # Check if we should stop
-                avg_eval_loss = np.mean(eval_losses)
-                if running_avg_loss < avg_eval_loss:
-                    print("Stopping at iteration {}".format(iter))
-                    break
+                    # Check if we should stop
+                    avg_eval_loss = np.mean(eval_losses)
+                    if running_avg_loss < avg_eval_loss:
+                        print("Stopping at iteration {}".format(iteration))
+                        break
 
     def get_rouge_scores(self, ref_sum, pred_sum):
         scores = rouge.get_scores(pred_sum, ref_sum)
         f1_rL = [score['rouge-l']['f'] for score in scores]
         return f1_rL
 
-
     def get_rewards(self, orig, pred):
         rewards = []
-	# We want reward of the whole sentence - reward of the sentence without sentence i
-
+        # We want reward of the whole sentence - reward of the sentence without sentence i
         for i in range(len(orig)):
             # Reward using the whole sentence
             total_score = self.get_rouge_scores(orig[i], ' '.join(pred[i]))[0]
@@ -271,11 +276,9 @@ class TrainSeq2Seq(object):
             for j in range(len(new_pred[i])):
                 pred_sum[i].append(' '.join(map(str, new_pred[i][j])))
 
-
         pg_losses = self.compute_pg_loss(orig_sum, pred_sum, sentence_losses)
 
         return pg_losses
-
 
     def train_one_batch_pg(self, batch):
         batch_size = batch.batch_size
@@ -310,7 +313,7 @@ class TrainSeq2Seq(object):
             target = target_batch[:, di]
             gold_probs = torch.gather(final_dist, 1, target.unsqueeze(1)).squeeze()
             step_loss = -torch.log(gold_probs + config.eps) # NLL
-                
+
             step_mask = dec_padding_mask[:, di]
             step_loss = step_loss * step_mask
 

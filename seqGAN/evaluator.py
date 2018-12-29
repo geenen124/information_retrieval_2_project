@@ -5,14 +5,17 @@ import time
 import sys
 
 import torch
+from torch.utils.data import DataLoader
 
 from data_util import config, data
 from data_util.batcher import Batcher
 from data_util.data import Vocab
+from data_util.daily_mail_dataset import DailyMailDataset
 
 from data_util.utils import calc_running_avg_loss
-from training_ptr_gen.train_util import get_input_from_batch, get_output_from_batch
+from training_ptr_gen.train_util import get_input_from_batch, get_output_from_batch, create_batch_collate
 from training_ptr_gen.model import Model
+
 
 import pickle
 from rouge import Rouge
@@ -21,12 +24,14 @@ rouge = Rouge()
 
 use_cuda = config.use_gpu and torch.cuda.is_available()
 
+
 class Evaluate_pg(object):
     def __init__(self, model_file_path):
         self.vocab = Vocab(config.vocab_path, config.vocab_size)
-        self.batcher = Batcher(config.eval_data_path, self.vocab, mode='eval',
-                               batch_size=config.batch_size, single_pass=True)
-        time.sleep(15)
+        # self.batcher = Batcher(config.eval_data_path, self.vocab, mode='eval',
+        #                        batch_size=config.batch_size, single_pass=True)
+        self.dataset = DailyMailDataset("val", self.vocab)
+        # time.sleep(15)
         model_name = os.path.basename(model_file_path)
 
         eval_dir = os.path.join(config.log_root, 'eval_%s' % (model_name))
@@ -177,12 +182,15 @@ class Evaluate_pg(object):
         return loss.item()
 
     def run_eval(self, model_dir, train_iter_id):
+        dataloader = DataLoader(self.dataset, batch_size=config.batch_size,
+                                shuffle=False, num_workers=1,
+                                collate_fn=create_batch_collate(self.vocab, config.batch_size))
         running_avg_loss, iter = 0, 0
         start = time.time()
-        batch = self.batcher.next_batch()
+        # batch = self.batcher.next_batch()
         pg_losses = []
         run_avg_losses = []
-        while batch is not None:
+        for batch in dataloader:
             loss = self.eval_one_batch(batch)
 
             running_avg_loss = calc_running_avg_loss(loss, running_avg_loss, iter)
@@ -194,7 +202,6 @@ class Evaluate_pg(object):
                 print('steps %d, seconds for %d batch: %.2f , loss: %f' % (
                 iter, print_interval, time.time() - start, running_avg_loss))
                 start = time.time()
-            batch = self.batcher.next_batch()
 
             pg_losses.append(loss)
             run_avg_losses.append(running_avg_loss)
