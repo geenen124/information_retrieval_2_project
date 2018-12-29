@@ -128,7 +128,7 @@ class Attention(nn.Module):
 class Decoder(nn.Module):
     def __init__(self):
         super(Decoder, self).__init__()
-        self.attention_network = Attention()
+        self.attention_network = nn.DataParallel(Attention())
         # decoder
         self.embedding = nn.Embedding(config.vocab_size, config.emb_dim)
         init_wt_normal(self.embedding.weight)
@@ -199,9 +199,9 @@ class Model(object):
             decoder = decoder.cuda()
             reduce_state = reduce_state.cuda()
 
-        self.encoder = encoder
-        self.decoder = decoder
-        self.reduce_state = reduce_state
+        self.encoder = nn.DataParallel(encoder)
+        self.decoder = nn.DataParallel(decoder)
+        self.reduce_state = nn.DataParallel(reduce_state)
 
         if model_file_path is not None:
             state = torch.load(model_file_path, map_location= lambda storage, location: storage)

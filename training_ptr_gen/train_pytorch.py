@@ -142,7 +142,7 @@ class Train(object):
                 loss = self.train_one_batch(batch)
 
                 running_avg_loss = calc_running_avg_loss(loss, running_avg_loss, iter)
-                # print("Iteration:", iter, "  loss:", loss, "  Running avg loss:", running_avg_loss)
+                print("Iteration:", iter, "  loss:", loss, "  Running avg loss:", running_avg_loss)
                 iter += 1
 
                 if iter >= n_iters:
