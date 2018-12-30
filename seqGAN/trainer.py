@@ -33,7 +33,7 @@ def get_rouge_scores(ref_sum, pred_sum, rouge_type="rouge-l"):
 
 
 class TrainSeq2Seq(object):
-    def __init__(self, is_word_level=True, is_combined=False):
+    def __init__(self, is_word_level=False, is_combined=True, alpha=0.3):
         self.vocab = Vocab(config.vocab_path, config.vocab_size)
         # self.batcher = Batcher(config.train_data_path, self.vocab, mode='train',
         #                        batch_size=config.batch_size, single_pass=False)
@@ -42,6 +42,14 @@ class TrainSeq2Seq(object):
 
         self.is_word_level = is_word_level
         self.is_combined = is_combined
+        self.alpha = alpha
+
+        if is_word_level:
+            print("Using Word Level Policy Gradient")
+        if is_combined:
+            print(f"Using Combined Policy Gradient w/ alpha = {alpha}")
+        else:
+            print("Using Sentence Level Policy Gradient")
 
         train_dir = "/home/lgpu0231"  #'./train_dumps'
         # train_dir = './train_dumps'
@@ -260,7 +268,7 @@ class TrainSeq2Seq(object):
                     rewards[i].append(r_weight)
         return rewards
 
-    def compute_pg_loss(self, orig, pred, sentence_losses, split_predictions, word_losses):
+    def compute_pg_loss(self, orig, pred, sentence_losses, split_predictions, word_losses, word_to_sent_ind):
         # First compute the rewards
         if not self.is_word_level or self.is_combined:
             sentence_rewards = self.get_sentence_rewards(orig, pred)
@@ -275,8 +283,8 @@ class TrainSeq2Seq(object):
                 pg_losses = [sum(pg) for pg in pg_losses]
 
         if self.is_combined:
-            # TODO: Add Combined
-            raise NotImplementedError()
+            pg_losses = [[(self.alpha * word_reward + (1-self.alpha) * sentence_rewards[i][word_to_sent_ind[i][j]])* word_losses[i][j] for j, word_reward in enumerate(abstract_rewards)] for i, abstract_rewards in enumerate(word_rewards)]
+            pg_losses = [sum(pg) for pg in pg_losses]
 
         return pg_losses
 
@@ -293,16 +301,20 @@ class TrainSeq2Seq(object):
             pred_sum.append([])
             sentence_losses.append([])
 
+        batch_sent_indices = []
         for i in range(len(pred)):
             sentence = []
             sentence = pred[i]
             losses = word_losses[i]
+            sentence_indices = []
             count = 0
             while len(sentence) > 0:
                 try:
                     idx = sentence.index(".")
                 except ValueError:
                     idx = len(sentence)
+
+                sentence_indices.extend([count for _ in range(idx)])
 
                 if count>0:
                     new_pred[i].append(new_pred[i][count-1] + sentence[:idx+1])
@@ -314,6 +326,7 @@ class TrainSeq2Seq(object):
                 sentence = sentence[idx+1:]
                 losses = losses[idx+1:]
                 count += 1
+            batch_sent_indices.append(sentence_indices)
 
         for i in range(len(pred)):
             for j in range(len(new_pred[i])):
@@ -322,7 +335,8 @@ class TrainSeq2Seq(object):
         pg_losses = self.compute_pg_loss(orig_sum, pred_sum,
                                          sentence_losses,
                                          split_predictions=pred,
-                                         word_losses=word_losses)
+                                         word_losses=word_losses,
+                                         word_to_sent_ind=batch_sent_indices)
 
         return pg_losses
 
