@@ -26,15 +26,25 @@ from rouge import Rouge
 rouge = Rouge()
 
 
+def get_rouge_scores(ref_sum, pred_sum, rouge_type="rouge-l"):
+    scores = rouge.get_scores(pred_sum, ref_sum)
+    f1_rL = [score[rouge_type]['f'] for score in scores]
+    return f1_rL
+
+
 class TrainSeq2Seq(object):
-    def __init__(self):
+    def __init__(self, is_word_level=True, is_combined=False):
         self.vocab = Vocab(config.vocab_path, config.vocab_size)
         # self.batcher = Batcher(config.train_data_path, self.vocab, mode='train',
         #                        batch_size=config.batch_size, single_pass=False)
         self.dataset = DailyMailDataset("train", self.vocab)
         #time.sleep(15)
 
+        self.is_word_level = is_word_level
+        self.is_combined = is_combined
+
         train_dir = "/home/lgpu0231"  #'./train_dumps'
+        # train_dir = './train_dumps'
         if not os.path.exists(train_dir):
             #print('create dict')
             os.mkdir(train_dir)
@@ -200,50 +210,83 @@ class TrainSeq2Seq(object):
                         print("Stopping at iteration {}".format(iteration))
                         break
 
-    def get_rouge_scores(self, ref_sum, pred_sum):
-        scores = rouge.get_scores(pred_sum, ref_sum)
-        f1_rL = [score['rouge-l']['f'] for score in scores]
-        return f1_rL
-
-    def get_rewards(self, orig, pred):
+    def get_sentence_rewards(self, orig, pred):
         rewards = []
         # We want reward of the whole sentence - reward of the sentence without sentence i
         for i in range(len(orig)):
             # Reward using the whole sentence
-            total_score = self.get_rouge_scores(orig[i], ' '.join(pred[i]))[0]
+            total_score = get_rouge_scores(orig[i], ' '.join(pred[i]))[0]
 
             rewards.append([])
             rewards[i] = []
 
             for j in range(len(pred[i])):
                 # sequence without sentence j
-                sub_summary = [sen for idx,sen in enumerate(pred[i]) if idx != j] if len(pred[i]) > 1 else pred[i]
-
-                score = self.get_rouge_scores(orig[i], ' '.join(sub_summary))[0]
+                # sub_summary = [sen for idx,sen in enumerate(pred[i]) if idx != j] if len(pred[i]) > 1 else pred[i]
+                sub_summary = pred[i][:j]+pred[i][j+1:]
+                if len(sub_summary) > 0:
+                    score = get_rouge_scores(orig[i], ' '.join(sub_summary))[0]
+                else:
+                    score = 0
                 r_weight = ((total_score - score) / total_score) if total_score > 0 else 1
 
                 rewards[i].append(r_weight)
 
         return rewards
 
+    def get_word_level_rewards(self, orig, whole_preds):
+        rewards = []
+        for i in range(len(orig)):
+            cached_rouge = {}
+            # First get the ROUGE of the whole prediction
+            score_whole_pred = get_rouge_scores(orig[i], " ".join(whole_preds[i]),
+                                                rouge_type="rouge-1")[0]
+            rewards.append([])
+            rewards[i] = []
 
-    def compute_pg_loss(self, orig, pred, sentence_losses):
-        rewards = self.get_rewards(orig, pred)
+            for j in range(len(whole_preds[i])):
+                if whole_preds[i][j] in cached_rouge:
+                    rewards[i].append(cached_rouge[whole_preds[i][j]])
+                else:
+                    # entire prediction without token j
+                    sub_summary = whole_preds[i][:j] + whole_preds[i][j+1:]
+                    if len(sub_summary) > 0:
+                        score = get_rouge_scores(orig[i], ' '.join(sub_summary))[0]
+                    else:
+                        score = 0
+                    r_weight = ((score_whole_pred - score) / score_whole_pred) if score_whole_pred > 0 else 1
+                    cached_rouge[whole_preds[i][j]] = r_weight
 
-        pg_losses = [[rs * sentence_losses[ri][rsi]  for rsi, rs in enumerate(r)] for ri, r in enumerate(rewards)]
-        pg_losses = [sum(pg) for pg in pg_losses]
+                    rewards[i].append(r_weight)
+        return rewards
+
+    def compute_pg_loss(self, orig, pred, sentence_losses, split_predictions, word_losses):
+        # First compute the rewards
+        if not self.is_word_level or self.is_combined:
+            sentence_rewards = self.get_sentence_rewards(orig, pred)
+            if not self.is_combined:
+                pg_losses = [[rs * sentence_losses[ri][rsi]  for rsi, rs in enumerate(r)] for ri, r in enumerate(sentence_rewards)]
+                pg_losses = [sum(pg) for pg in pg_losses]
+
+        if self.is_word_level or self.is_combined:
+            word_rewards = self.get_word_level_rewards(orig, split_predictions)
+            if not self.is_combined:
+                pg_losses = [[word_reward * word_losses[i][j] for j, word_reward in enumerate(abstract_rewards)] for i, abstract_rewards in enumerate(word_rewards)]
+                pg_losses = [sum(pg) for pg in pg_losses]
+
+        if self.is_combined:
+            # TODO: Add Combined
+            raise NotImplementedError()
 
         return pg_losses
 
-
-
-    def compute_batched_loss(self, word_losses, orig, pred):
+    def compute_batched_sentence_loss(self, word_losses, orig, pred):
         orig_sum = []
         new_pred = []
         pred_sum = []
         sentence_losses = []
 
-        # Convert the original sum as one single string per batch
+        # Convert the original sum as one single string per article
         for i in range(len(orig)):
             orig_sum.append(' '.join(map(str, orig[i])))
             new_pred.append([])
@@ -276,7 +319,10 @@ class TrainSeq2Seq(object):
             for j in range(len(new_pred[i])):
                 pred_sum[i].append(' '.join(map(str, new_pred[i][j])))
 
-        pg_losses = self.compute_pg_loss(orig_sum, pred_sum, sentence_losses)
+        pg_losses = self.compute_pg_loss(orig_sum, pred_sum,
+                                         sentence_losses,
+                                         split_predictions=pred,
+                                         word_losses=word_losses)
 
         return pg_losses
 
@@ -334,7 +380,7 @@ class TrainSeq2Seq(object):
         predicted_abstracts = [data.outputids2words(ids, self.vocab, None) for ids in output_ids]
 
         # Compute the batched loss
-        batched_losses = self.compute_batched_loss(step_losses, original_abstracts, predicted_abstracts)
+        batched_losses = self.compute_batched_sentence_loss(step_losses, original_abstracts, predicted_abstracts)
         #batched_losses = Variable(batched_losses, requires_grad=True)
         losses = torch.stack(batched_losses)
         losses = losses / dec_lens_var
