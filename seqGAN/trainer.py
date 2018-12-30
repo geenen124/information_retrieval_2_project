@@ -268,23 +268,35 @@ class TrainSeq2Seq(object):
                     rewards[i].append(r_weight)
         return rewards
 
-    def compute_pg_loss(self, orig, pred, sentence_losses, split_predictions, word_losses, word_to_sent_ind):
-        # First compute the rewards
-        if not self.is_word_level or self.is_combined:
-            sentence_rewards = self.get_sentence_rewards(orig, pred)
-            if not self.is_combined:
-                pg_losses = [[rs * sentence_losses[ri][rsi]  for rsi, rs in enumerate(r)] for ri, r in enumerate(sentence_rewards)]
-                pg_losses = [sum(pg) for pg in pg_losses]
-
-        if self.is_word_level or self.is_combined:
-            word_rewards = self.get_word_level_rewards(orig, split_predictions)
-            if not self.is_combined:
-                pg_losses = [[word_reward * word_losses[i][j] for j, word_reward in enumerate(abstract_rewards)] for i, abstract_rewards in enumerate(word_rewards)]
-                pg_losses = [sum(pg) for pg in pg_losses]
-
+    def compute_policy_grads_using_rewards(self, sentence_rewards, word_rewards, sentence_losses, word_losses, word_to_sent_ind):
         if self.is_combined:
             pg_losses = [[(self.alpha * word_reward + (1-self.alpha) * sentence_rewards[i][word_to_sent_ind[i][j]])* word_losses[i][j] for j, word_reward in enumerate(abstract_rewards)] for i, abstract_rewards in enumerate(word_rewards)]
             pg_losses = [sum(pg) for pg in pg_losses]
+        elif self.is_word_level:
+            pg_losses = [[word_reward * word_losses[i][j] for j, word_reward in enumerate(abstract_rewards)] for i, abstract_rewards in enumerate(word_rewards)]
+            pg_losses = [sum(pg) for pg in pg_losses]
+        else:
+            pg_losses = [[rs * sentence_losses[ri][rsi]  for rsi, rs in enumerate(r)] for ri, r in enumerate(sentence_rewards)]
+            pg_losses = [sum(pg) for pg in pg_losses]
+        return pg_losses
+
+    def compute_pg_loss(self, orig, pred, sentence_losses, split_predictions, word_losses, word_to_sent_ind):
+        sentence_rewards = None
+        word_rewards = None
+        # First compute the rewards
+        if not self.is_word_level or self.is_combined:
+            sentence_rewards = self.get_sentence_rewards(orig, pred)
+
+        if self.is_word_level or self.is_combined:
+            word_rewards = self.get_word_level_rewards(orig, split_predictions)
+
+        pg_losses = self.compute_policy_grads_using_rewards(
+            sentence_rewards=sentence_rewards,
+            word_rewards=word_rewards,
+            sentence_losses=sentence_losses,
+            word_losses=word_losses,
+            word_to_sent_ind=word_to_sent_ind
+        )
 
         return pg_losses
 
