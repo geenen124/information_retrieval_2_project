@@ -226,7 +226,6 @@ class TrainSeq2Seq(object):
             total_score = get_rouge_scores(orig[i], ' '.join(pred[i]))[0]
 
             rewards.append([])
-            rewards[i] = []
 
             for j in range(len(pred[i])):
                 # sequence without sentence j
@@ -250,7 +249,6 @@ class TrainSeq2Seq(object):
             score_whole_pred = get_rouge_scores(orig[i], " ".join(whole_preds[i]),
                                                 rouge_type="rouge-1")[0]
             rewards.append([])
-            rewards[i] = []
 
             for j in range(len(whole_preds[i])):
                 if whole_preds[i][j] in cached_rouge:
