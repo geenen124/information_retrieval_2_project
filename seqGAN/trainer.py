@@ -18,18 +18,9 @@ from data_util.daily_mail_dataset import DailyMailDataset
 from data_util.data import Vocab
 from data_util.utils import calc_running_avg_loss
 from data_util import config, data
+from rewards import get_word_level_rewards, get_sentence_rewards
 from training_ptr_gen.train_util import get_input_from_batch, get_output_from_batch, create_batch_collate
 from evaluator import Evaluate_pg
-
-from rouge import Rouge
-
-rouge = Rouge()
-
-
-def get_rouge_scores(ref_sum, pred_sum, rouge_type="rouge-l"):
-    scores = rouge.get_scores(pred_sum, ref_sum)
-    f1_rL = [score[rouge_type]['f'] for score in scores]
-    return f1_rL
 
 
 class TrainSeq2Seq(object):
@@ -218,54 +209,6 @@ class TrainSeq2Seq(object):
                         print("Stopping at iteration {}".format(iteration))
                         break
 
-    def get_sentence_rewards(self, orig, pred):
-        rewards = []
-        # We want reward of the whole sentence - reward of the sentence without sentence i
-        for i in range(len(orig)):
-            # Reward using the whole sentence
-            total_score = get_rouge_scores(orig[i], ' '.join(pred[i]))[0]
-
-            rewards.append([])
-
-            for j in range(len(pred[i])):
-                # sequence without sentence j
-                # sub_summary = [sen for idx,sen in enumerate(pred[i]) if idx != j] if len(pred[i]) > 1 else pred[i]
-                sub_summary = pred[i][:j]+pred[i][j+1:]
-                if len(sub_summary) > 0:
-                    score = get_rouge_scores(orig[i], ' '.join(sub_summary))[0]
-                else:
-                    score = 0
-                r_weight = ((total_score - score) / total_score) if total_score > 0 else 1
-
-                rewards[i].append(r_weight)
-
-        return rewards
-
-    def get_word_level_rewards(self, orig, whole_preds):
-        rewards = []
-        for i in range(len(orig)):
-            cached_rouge = {}
-            # First get the ROUGE of the whole prediction
-            score_whole_pred = get_rouge_scores(orig[i], " ".join(whole_preds[i]),
-                                                rouge_type="rouge-1")[0]
-            rewards.append([])
-
-            for j in range(len(whole_preds[i])):
-                if whole_preds[i][j] in cached_rouge:
-                    rewards[i].append(cached_rouge[whole_preds[i][j]])
-                else:
-                    # entire prediction without token j
-                    sub_summary = whole_preds[i][:j] + whole_preds[i][j+1:]
-                    if len(sub_summary) > 0:
-                        score = get_rouge_scores(orig[i], ' '.join(sub_summary))[0]
-                    else:
-                        score = 0
-                    r_weight = ((score_whole_pred - score) / score_whole_pred) if score_whole_pred > 0 else 1
-                    cached_rouge[whole_preds[i][j]] = r_weight
-
-                    rewards[i].append(r_weight)
-        return rewards
-
     def compute_policy_grads_using_rewards(self, sentence_rewards, word_rewards, sentence_losses, word_losses, word_to_sent_ind):
         if self.is_combined:
             pg_losses = [[(self.alpha * word_reward + (1-self.alpha) * sentence_rewards[i][word_to_sent_ind[i][j]])* word_losses[i][j] for j, word_reward in enumerate(abstract_rewards)] for i, abstract_rewards in enumerate(word_rewards)]
@@ -283,10 +226,10 @@ class TrainSeq2Seq(object):
         word_rewards = None
         # First compute the rewards
         if not self.is_word_level or self.is_combined:
-            sentence_rewards = self.get_sentence_rewards(orig, pred)
+            sentence_rewards = get_sentence_rewards(orig, pred)
 
         if self.is_word_level or self.is_combined:
-            word_rewards = self.get_word_level_rewards(orig, split_predictions)
+            word_rewards = get_word_level_rewards(orig, split_predictions)
 
         pg_losses = self.compute_policy_grads_using_rewards(
             sentence_rewards=sentence_rewards,
