@@ -2,6 +2,7 @@ from torch.autograd import Variable
 import numpy as np
 import torch
 from data_util import config
+from padded_batch import PaddedBatch
 
 def get_input_from_batch(batch, use_cuda):
   batch_size = len(batch.enc_lens)
@@ -51,3 +52,11 @@ def get_output_from_batch(batch, use_cuda):
 
   return dec_batch, dec_padding_mask, max_dec_len, dec_lens_var, target_batch
 
+
+def create_batch_collate(vocab, batch_size):
+    def collate_batch(examples_list):
+        inputs = sorted(examples_list, key=lambda inp: inp.enc_len, reverse=True) # sort by length of encoder sequence
+        batch = PaddedBatch(inputs, vocab, batch_size)
+        return batch
+
+    return collate_batch
