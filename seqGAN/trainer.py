@@ -182,14 +182,14 @@ class TrainSeq2Seq(object):
 
                 loss = self.train_one_batch_pg(batch)
 
-                running_avg_loss = calc_running_avg_loss(loss, running_avg_loss, iter)
+                running_avg_loss = calc_running_avg_loss(loss, running_avg_loss, iteration)
                 print("Iteration:", iteration, "  PG loss:", loss, "  Running avg loss:", running_avg_loss)
                 pg_losses.append(loss)
                 run_avg_losses.append(running_avg_loss)
 
                 print_interval = 10
                 if iteration % print_interval == 0:
-                    print('steps %d, seconds for %d batch: %.2f , loss: %f' % (iter, print_interval,
+                    print('steps %d, seconds for %d batch: %.2f , loss: %f' % (iteration, print_interval,
                                                                                time.time() - start, loss))
 
                     start = time.time()
@@ -200,7 +200,10 @@ class TrainSeq2Seq(object):
                     pickle.dump(pg_losses, open(os.path.join(self.model_dir, 'train_pg_losses_{}.p'.format(iteration)),'wb'))
                     pickle.dump(run_avg_losses, open(os.path.join(self.model_dir, 'train_run_avg_losses_{}.p'.format(iteration)),'wb'))
                     # Run eval
-                    eval_processor = Evaluate_pg(model_file_path)
+                    eval_processor = Evaluate_pg(model_file_path,
+                                                 is_word_level=self.is_word_level,
+                                                 is_combined=self.is_combined,
+                                                 alpha=self.alpha)
                     eval_losses = eval_processor.run_eval(self.model_dir, iteration)
 
                     # Check if we should stop

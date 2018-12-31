@@ -27,13 +27,17 @@ use_cuda = config.use_gpu and torch.cuda.is_available()
 
 
 class Evaluate_pg(object):
-    def __init__(self, model_file_path):
+    def __init__(self, model_file_path, is_word_level, is_combined, alpha):
         self.vocab = Vocab(config.vocab_path, config.vocab_size)
         # self.batcher = Batcher(config.eval_data_path, self.vocab, mode='eval',
         #                        batch_size=config.batch_size, single_pass=True)
         self.dataset = DailyMailDataset("val", self.vocab)
         # time.sleep(15)
         model_name = os.path.basename(model_file_path)
+
+        self.is_word_level = is_word_level
+        self.is_combined = is_combined
+        self.alpha = alpha
 
         eval_dir = os.path.join(config.log_root, 'eval_%s' % (model_name))
         if not os.path.exists(eval_dir):
@@ -73,7 +77,7 @@ class Evaluate_pg(object):
 
         return pg_losses
 
-    def compute_batched_sentence_loss(self, word_losses, orig, pred):
+    def compute_batched_loss(self, word_losses, orig, pred):
         orig_sum = []
         new_pred = []
         pred_sum = []
