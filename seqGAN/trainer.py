@@ -42,7 +42,7 @@ class TrainSeq2Seq(object):
         else:
             print("Using Sentence Level Policy Gradient")
 
-        train_dir = "/home/lgpu0231"  #'./train_dumps'
+        train_dir = './train_dumps'
         # train_dir = './train_dumps'
         if not os.path.exists(train_dir):
             #print('create dict')
