@@ -2,7 +2,7 @@ from torch.autograd import Variable
 import numpy as np
 import torch
 from data_util import config
-from padded_batch import PaddedBatch
+from data_util.padded_batch import PaddedBatch
 
 def get_input_from_batch(batch, use_cuda):
   batch_size = len(batch.enc_lens)

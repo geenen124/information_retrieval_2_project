@@ -27,7 +27,7 @@ if __name__ == '__main__':
 
     args = parser.parse_args()
 
-    seq2seq_checkpoint_file = "/home/lgpu0231/information_retrieval_2_project/Seq2Seq_model_50000"
+    seq2seq_checkpoint_file = "./Seq2Seq_model_50000"
     pg_losses = []#pickle.load(open("/home/lgpu0231/dumps_model_12_16_11_08/pg_losses_350.p", 'rb'))
     run_avg_losses = []#pickle.load(open("/home/lgpu0231/dumps_model_12_16_11_08/run_avg_losses_350.p", 'rb'))
 

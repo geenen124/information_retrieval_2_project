@@ -1,6 +1,6 @@
 import os
 import h5py
-import data
+from data_util import data
 from data_util import config
 
 
@@ -11,7 +11,7 @@ def bin_files_to_h5py(data_path, fileType):
     for _ in examples:
         numExamples += 1
 
-    print(f"Counted number of examples: {numExamples}")
+    print("Counted number of examples: ", numExamples)
     examples = data.text_generator(data.example_generator(data_path, True, False))
 
     # Next write to file
@@ -30,7 +30,7 @@ def bin_files_to_h5py(data_path, fileType):
 
 
 def h5_db_filepath(file_type):
-    return os.path.join(config.root_dir, f"cnn-dailymail-master/finished_files/{file_type}.hdf5")
+    return os.path.join(config.root_dir, "cnn-dailymail-master/finished_files/" + file_type + ".hdf5")
 
 
 def check_if_h5_db_exists(file_type):
@@ -43,10 +43,10 @@ def convert_bin_files_to_h5():
 
     for file_type, data_path in bin_paths.items():
         if not check_if_h5_db_exists(file_type):
-            print(f"Creating {file_type} file")
+            print("Creating ", file_type, " file")
             bin_files_to_h5py(data_path, file_type)
         else:
-            print(f"{file_type} H5 DB already exists")
+            print(file_type, " H5 DB already exists")
 
 
 if __name__ == "__main__":

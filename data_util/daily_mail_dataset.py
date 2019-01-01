@@ -3,8 +3,8 @@ import torch
 from torch.utils.data import Dataset
 
 from data_util.bin_files_to_h5 import convert_bin_files_to_h5, h5_db_filepath
-import data
-from batcher import Example
+from data_util import data
+from data_util.batcher import Example
 
 
 class DailyMailDataset(Dataset):

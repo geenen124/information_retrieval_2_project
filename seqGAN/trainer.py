@@ -38,7 +38,7 @@ class TrainSeq2Seq(object):
         if is_word_level:
             print("Using Word Level Policy Gradient")
         if is_combined:
-            print(f"Using Combined Policy Gradient w/ alpha = {alpha}")
+            print("Using Combined Policy Gradient w/ alpha = ", alpha)
         else:
             print("Using Sentence Level Policy Gradient")
 
@@ -176,7 +176,7 @@ class TrainSeq2Seq(object):
         iteration = start_iter
 
         for epoch in range(num_epochs):
-            print(f"Epoch {epoch+1}")
+            print("Epoch :", epoch+1)
             for batch in dataloader:
                 iteration += 1
 

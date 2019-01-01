@@ -1,7 +1,7 @@
 import numpy as np
 
-import config
-import data
+from data_util import config
+from data_util import data
 
 
 class PaddedBatch(object):
