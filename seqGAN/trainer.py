@@ -24,7 +24,7 @@ from evaluator import Evaluate_pg
 
 
 class TrainSeq2Seq(object):
-    def __init__(self, is_word_level=False, is_combined=True, alpha=0.3):
+    def __init__(self, is_word_level=False, is_combined=False, alpha=0.3):
         self.vocab = Vocab(config.vocab_path, config.vocab_size)
         # self.batcher = Batcher(config.train_data_path, self.vocab, mode='train',
         #                        batch_size=config.batch_size, single_pass=False)
@@ -37,7 +37,7 @@ class TrainSeq2Seq(object):
 
         if is_word_level:
             print("Using Word Level Policy Gradient")
-        if is_combined:
+        elif is_combined:
             print("Using Combined Policy Gradient w/ alpha = ", alpha)
         else:
             print("Using Sentence Level Policy Gradient")
