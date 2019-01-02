@@ -22,7 +22,7 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument("--word-level", dest="is_word_level", action="store_true")
     parser.add_argument("--combined", dest="is_combined", action="store_true")
-    parser.set_defaults(is_word_level=True)
+    parser.set_defaults(is_word_level=False)
     parser.set_defaults(is_combined=False)
 
     args = parser.parse_args()
