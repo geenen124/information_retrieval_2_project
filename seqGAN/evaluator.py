@@ -50,7 +50,7 @@ class Evaluate_pg(object):
             pg_losses = [[(self.alpha * word_reward + (1-self.alpha) * sentence_rewards[i][word_to_sent_ind[i][j]])* word_losses[i][j] for j, word_reward in enumerate(abstract_rewards) if j < len(word_to_sent_ind[i])] for i, abstract_rewards in enumerate(word_rewards)]
             pg_losses = [sum(pg) for pg in pg_losses]
         elif self.is_word_level:
-            pg_losses = [[word_reward * word_losses[i][j] for j, word_reward in enumerate(abstract_rewards)] for i, abstract_rewards in enumerate(word_rewards)]
+            pg_losses = [[word_reward * word_losses[i][j] for j, word_reward in enumerate(abstract_rewards) if j < len(word_to_sent_ind[i])] for i, abstract_rewards in enumerate(word_rewards)]
             pg_losses = [sum(pg) for pg in pg_losses]
         else:
             pg_losses = [[rs * sentence_losses[ri][rsi]  for rsi, rs in enumerate(r)] for ri, r in enumerate(sentence_rewards)]
