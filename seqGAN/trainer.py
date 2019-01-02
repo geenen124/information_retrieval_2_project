@@ -214,7 +214,7 @@ class TrainSeq2Seq(object):
 
     def compute_policy_grads_using_rewards(self, sentence_rewards, word_rewards, sentence_losses, word_losses, word_to_sent_ind):
         if self.is_combined:
-            pg_losses = [[(self.alpha * word_reward + (1-self.alpha) * sentence_rewards[i][word_to_sent_ind[i][j]])* word_losses[i][j] for j, word_reward in enumerate(abstract_rewards)] for i, abstract_rewards in enumerate(word_rewards)]
+            pg_losses = [[(self.alpha * word_reward + (1-self.alpha) * sentence_rewards[i][word_to_sent_ind[i][j]])* word_losses[i][j] for j, word_reward in enumerate(abstract_rewards) if j < len(word_to_sent_ind[i])] for i, abstract_rewards in enumerate(word_rewards)]
             pg_losses = [sum(pg) for pg in pg_losses]
         elif self.is_word_level:
             pg_losses = [[word_reward * word_losses[i][j] for j, word_reward in enumerate(abstract_rewards)] for i, abstract_rewards in enumerate(word_rewards)]
