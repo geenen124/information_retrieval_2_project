@@ -1,12 +1,27 @@
-# pointer summarizer
+# Global and Local Critical Policy Learning for Abstractive Summarization
 
-Pytorch implementation of *[Get To The Point: Summarization with Pointer-Generator Networks](https://arxiv.org/abs/1704.04368)*
+
+N.B.
+Includes a Pytorch implementation of *[Get To The Point: Summarization with Pointer-Generator Networks](https://arxiv.org/abs/1704.04368)*
 Base version reference: *[pointer_summerizer](https://github.com/atulkum/pointer_summarizer)*
 
-* Requires python 3.x and pytorch 0.4
+# Training
+* To train an initial Seq-2-Seq Network run the `training_ptr_gen/train_pytorch.py` file
+* To train the Network using the Policy Gradient run the `seqGAN/main.py` file (be sure to point to your pretrained Seq2Seq model if you want good results). The default reward level is the global sentence level reward. 
+* Pass `--word-level` to train with local word level rewards
+* Pass `--combined` to train with the combined rewards
+* Adjust the `data_util/config.py` as necessary to adjust paths and training settings
+* N.B. You may need to run `export PYTHONPATH=$PYTHONPATH:'pwd'` in order to properly configure the references
+
 
 # Data:
 * Follow data generation instruction from https://github.com/abisee/cnn-dailymail 
+
+# Dependencies
+* Requires python 3.x and pytorch 0.4
+* To install the dependencies run `pip install -r requirements.txt`
+* In order to evaluate results using the ROUGE metric please follow the instructions below (a working PERL installation is required)
+
 
 # How to Install PyRouge
 --------------------------------------------
@@ -23,17 +38,7 @@ Base version reference: *[pointer_summerizer](https://github.com/atulkum/pointer
 1. Follow the install instructions of `git clone https://github.com/pltrdy/rouge`
 
 
-# How to run training:
---------------------------------------------
-* You might need to change some path and parameters in data_util/config.py
-* For training run start_train.sh, for decoding run start_decode.sh, and for evaluating run run_eval.sh
-OR
-```
-export PYTHONPATH=$PYTHONPATH:'pwd'
-python training_ptr_gen/train.py
-```
-
-# How to load a model checkpoint for training/evaluation/decoding
+# Evaluation of saved models
 * **Note:** For training passing the initial checkpoint is optional argument, but for evaluation and decoding passing the checkpoint is must.
 * For training:
 ```
