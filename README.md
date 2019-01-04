@@ -39,16 +39,7 @@ Base version reference: *[pointer_summerizer](https://github.com/atulkum/pointer
 
 
 # Evaluation of saved models
-* **Note:** For training passing the initial checkpoint is optional argument, but for evaluation and decoding passing the checkpoint is must.
-* For training seq-seq/pointer-gen baselines:
-```
-python training_ptr_gen/train.py -m <absolute/path/to/model/checkpoint>
-```
-* For training using reward based losses:
-```
-python seqGAN/main.py
-```
-**Note:** For training using the checkpoint, make sure the correct path to the checkpoint is given in the main. For training from scratch, set it to None. 
+* **Note:** For training passing the initial checkpoint is optional argument, but for evaluation and decoding passing the checkpoint is must. 
 * For evaluation and decoding:
 ```
 python training_ptr_gen/eval.py <absolute/path/to/model/checkpoint>
