@@ -42,7 +42,7 @@ Base version reference: *[pointer_summerizer](https://github.com/atulkum/pointer
 * **Note:** For training passing the initial checkpoint is optional argument, but for evaluation and decoding passing the checkpoint is must.
 * For training:
 ```
-python training_ptr_gen/train.py -m <absolute/path/to/model/checkpoint>
+python seqGAN/main.py -m <absolute/path/to/model/checkpoint>
 ```
 * For evaluation and decoding:
 ```
