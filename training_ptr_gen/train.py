@@ -141,6 +141,16 @@ if __name__ == '__main__':
                         required=False,
                         default=None,
                         help="Model file for retraining (default: None).")
+    parser.add_argument("-pg",
+                        dest="use_pg",
+                        required=False,
+                        default=True,
+                        help="Use pointer gen (If false Seq2Seq is used) (default: True).")
+    parser.add_argument("-cvg",
+                        dest="use_cvg",
+                        required=False,
+                        default=True,
+                        help="Use coverage (default: True).")
     args = parser.parse_args()
     
     train_processor = Train()
