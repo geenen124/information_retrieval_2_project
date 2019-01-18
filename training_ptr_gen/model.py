@@ -87,8 +87,9 @@ class Attention(nn.Module):
     def __init__(self):
         super(Attention, self).__init__()
         # attention
-        if config.is_coverage:
-            self.W_c = nn.Linear(1, config.hidden_dim * 2, bias=False)
+        #if config.is_coverage:
+        #    self.W_c = nn.Linear(1, config.hidden_dim * 2, bias=False)
+        self.W_c = nn.Linear(1, config.hidden_dim * 2, bias=False)
         self.decode_proj = nn.Linear(config.hidden_dim * 2, config.hidden_dim * 2)
         self.v = nn.Linear(config.hidden_dim * 2, 1, bias=False)
 
@@ -100,9 +101,13 @@ class Attention(nn.Module):
         dec_fea_expanded = dec_fea_expanded.view(-1, n)  # B * t_k x 2*hidden_dim
 
         att_features = encoder_feature + dec_fea_expanded # B * t_k x 2*hidden_dim
+        #if config.is_coverage:
+        #    coverage_input = coverage.view(-1, 1)  # B * t_k x 1
+        #    coverage_feature = self.W_c(coverage_input)  # B * t_k x 2*hidden_dim
+        #    att_features = att_features + coverage_feature
+        coverage_input = coverage.view(-1, 1)  # B * t_k x 1
+        coverage_feature = self.W_c(coverage_input)  # B * t_k x 2*hidden_dim
         if config.is_coverage:
-            coverage_input = coverage.view(-1, 1)  # B * t_k x 1
-            coverage_feature = self.W_c(coverage_input)  # B * t_k x 2*hidden_dim
             att_features = att_features + coverage_feature
 
         e = torch.tanh(att_features) # B * t_k x 2*hidden_dim

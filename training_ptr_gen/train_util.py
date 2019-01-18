@@ -20,9 +20,10 @@ def get_input_from_batch(batch, use_cuda):
 
   c_t_1 = Variable(torch.zeros((batch_size, 2 * config.hidden_dim)))
 
-  coverage = None
-  if config.is_coverage:
-    coverage = Variable(torch.zeros(enc_batch.size()))
+  #coverage = None
+  #if config.is_coverage:
+  #  coverage = Variable(torch.zeros(enc_batch.size()))
+  coverage = Variable(torch.zeros(enc_batch.size()))
 
   if use_cuda:
     enc_batch = enc_batch.cuda()
